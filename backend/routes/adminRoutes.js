@@ -64,16 +64,67 @@ router.post('/counselors', protect, admin, async (req, res) => {
     }
 });
 
+// @desc    Update a counselor (and user profile name)
+// @route   PUT /api/admin/counselors/:id
+// @access  Private/Admin
+router.put('/counselors/:id', protect, admin, async (req, res) => {
+    try {
+        const { name, specialty } = req.body;
+        const counselor = await Counselor.findById(req.params.id);
+        
+        if (counselor) {
+            counselor.specialty = specialty || counselor.specialty;
+            
+            // Update associated user's name if provided
+            if (name) {
+                await User.findByIdAndUpdate(counselor.userId, { name });
+            }
+
+            const updatedCounselor = await counselor.save();
+            res.json(updatedCounselor);
+        } else {
+            res.status(404).json({ message: 'Counselor not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Delete a counselor (and associated user)
+// @route   DELETE /api/admin/counselors/:id
+// @access  Private/Admin
+router.delete('/counselors/:id', protect, admin, async (req, res) => {
+    try {
+        const counselor = await Counselor.findById(req.params.id);
+        if (counselor) {
+            // Delete associated user
+            const user = await User.findById(counselor.userId);
+            if (user) {
+                await user.deleteOne();
+            }
+            await counselor.deleteOne();
+            res.json({ message: 'Counselor and user removed' });
+        } else {
+            res.status(404).json({ message: 'Counselor not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // @desc    Update user active status (deactivate/activate)
 // @route   PUT /api/admin/users/:id/status
 // @access  Private/Admin
 router.put('/users/:id/status', protect, admin, async (req, res) => {
     try {
-        const user = await User.findById(req.params.id);
+        const isActive = req.body.isActive;
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.id, 
+            { $set: { isActive: isActive } }, 
+            { new: true, runValidators: false }
+        );
 
-        if (user) {
-            user.isActive = req.body.isActive !== undefined ? req.body.isActive : user.isActive;
-            const updatedUser = await user.save();
+        if (updatedUser) {
             res.json({
                 _id: updatedUser._id,
                 name: updatedUser.name,
@@ -117,6 +168,23 @@ router.get('/appointments', protect, admin, async (req, res) => {
             })
             .sort({ date: -1, time: 1 });
         res.json(appointments);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Delete an appointment
+// @route   DELETE /api/admin/appointments/:id
+// @access  Private/Admin
+router.delete('/appointments/:id', protect, admin, async (req, res) => {
+    try {
+        const appointment = await Appointment.findById(req.params.id);
+        if (appointment) {
+            await appointment.deleteOne();
+            res.json({ message: 'Appointment removed' });
+        } else {
+            res.status(404).json({ message: 'Appointment not found' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

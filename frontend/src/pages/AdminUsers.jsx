@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { 
     Users, LayoutGrid, Award, CalendarCheck, User, Trash2, 
-    Download, ChevronLeft, ChevronRight, Search
+    Download, ChevronLeft, ChevronRight, Search, Eye, X, Activity, Clock
 } from 'lucide-react';
 
 const NavItem = ({ icon, label, to, active, onClick }) => {
@@ -22,23 +22,33 @@ const NavItem = ({ icon, label, to, active, onClick }) => {
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
+    const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // View Modal State
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
     const location = useLocation();
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetchUsers();
+        fetchMainData();
     }, []);
 
-    const fetchUsers = async () => {
+    const fetchMainData = async () => {
         try {
-            const res = await api.get('/api/admin/users');
+            const [usersRes, appointmentsRes] = await Promise.all([
+                api.get('/api/admin/users'),
+                api.get('/api/admin/appointments')
+            ]);
             // Filter only students
-            const students = res.data.filter(u => u.role === 'student');
+            const students = usersRes.data.filter(u => u.role === 'student');
             setUsers(students);
+            setAppointments(appointmentsRes.data);
         } catch (e) {
-            console.error('Failed to fetch users', e);
+            console.error('Failed to fetch data', e);
         } finally {
             setLoading(false);
         }
@@ -53,6 +63,16 @@ const AdminUsers = () => {
                 console.error('Failed to delete user', e);
                 alert('Deletion failed.');
             }
+        }
+    };
+
+    const toggleStatus = async (userId, currentStatus) => {
+        if (!userId) return;
+        try {
+            await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
+            fetchMainData();
+        } catch { 
+            alert('Error updating status'); 
         }
     };
 
@@ -193,8 +213,14 @@ const AdminUsers = () => {
                                             </td>
                                             <td style={{...s.td, textAlign: 'right'}}>
                                                 <div style={s.actionBtns}>
-                                                    <button style={s.iconActionBtnDestructive} onClick={() => handleDelete(u._id)} title="Delete user">
+                                                    <button style={s.iconActionBtnDestructive} onClick={() => handleDelete(u._id)} title="Hard Delete user">
                                                         <Trash2 size={16} />
+                                                    </button>
+                                                    <button onClick={() => toggleStatus(u._id, u.isActive)} style={u.isActive ? s.btnDeactivate : s.btnActivate} title={u.isActive ? "Deactivate" : "Activate"}>
+                                                        {u.isActive ? 'Deactivate' : 'Activate'}
+                                                    </button>
+                                                    <button style={s.iconActionBtn} onClick={() => { setSelectedUser(u); setIsViewModalOpen(true); }} title="View Profile">
+                                                        <Eye size={16} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -218,6 +244,62 @@ const AdminUsers = () => {
                     </div>
                 </div>
             </div>
+
+            {/* View Profile Modal */}
+            {isViewModalOpen && selectedUser && (
+                <div style={s.modalOverlay}>
+                    <div style={s.modalContent}>
+                        <div style={s.modalHeader}>
+                            <h3 style={s.modalTitle}>Student Profile</h3>
+                            <button style={s.modalClose} onClick={() => { setIsViewModalOpen(false); setSelectedUser(null); }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={s.modalBodyDetail}>
+                            <div style={s.detailAvatar}>
+                                <div style={s.detailAvatarCircle}>
+                                    {selectedUser.name?.split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase() || 'U'}
+                                </div>
+                                <h4 style={s.detailName}>{selectedUser.name || 'Unknown'}</h4>
+                                <div style={s.detailEmail}>{selectedUser.email || 'N/A'}</div>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                    <span style={selectedUser.isActive ? s.availActive : s.availInactive}>
+                                        {selectedUser.isActive ? 'Active' : 'Suspended'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style={s.historySection}>
+                                <h5 style={s.sectionTitle}><Activity size={16}/> Counseling History</h5>
+                                {(() => {
+                                    const userAppts = appointments.filter(a => a.studentId?._id === selectedUser._id);
+                                    if (userAppts.length === 0) {
+                                        return <div style={s.emptyHistory}>No counseling history found for this student.</div>;
+                                    }
+                                    
+                                    return (
+                                        <div style={s.historyList}>
+                                            {userAppts.map((appt, idx) => (
+                                                <div key={idx} style={s.historyCard}>
+                                                    <div style={s.historyTop}>
+                                                        <span style={s.historyDate}><Clock size={12}/> {new Date(appt.date).toLocaleDateString()} at {appt.time}</span>
+                                                        <span style={appt.status === 'completed' ? s.statusCompleted : (appt.status === 'pending' ? s.statusPending : s.statusCancelled)}>
+                                                            {appt.status.charAt(0).toUpperCase() + appt.status.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                    <div style={s.assignedCounselor}>
+                                                        <strong>Counselor:</strong> {appt.counselorId?.userId?.name || 'Unknown'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -280,8 +362,11 @@ const s = {
     availInactive: { background: '#e2e8f0', color: '#475569', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-block', minWidth: '80px', textAlign: 'center' },
     
     // Actions
-    actionBtns: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem' },
-    iconActionBtnDestructive: { background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex' },
+    actionBtns: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem' },
+    iconActionBtnDestructive: { background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', transition: 'all 0.15s' },
+    iconActionBtn: { background: 'white', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', transition: 'all 0.15s' },
+    btnDeactivate: { background: 'white', border: '1px solid #e2e8f0', color: '#64748b', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
+    btnActivate: { background: '#0f172a', border: '1px solid #0f172a', color: 'white', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
 
     // Pagination
     paginationWrap: { padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', borderTop: 'none' },
@@ -290,6 +375,32 @@ const s = {
     pageArrow: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: '0 0.25rem' },
     pageNumber: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '0 0.25rem' },
     pageNumberActive: { background: '#0f172a', borderRadius: '6px', border: 'none', color: 'white', fontSize: '0.85rem', fontWeight: 800, cursor: 'default', padding: '0.25rem 0.6rem' },
+
+    // Modal Styles
+    modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+    modalContent: { backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '500px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', overflow: 'hidden' },
+    modalHeader: { padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 },
+    modalTitle: { margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' },
+    modalClose: { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.25rem' },
+    
+    // View mode detailed styles
+    modalBodyDetail: { padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'stretch', backgroundColor: '#f8fafc', overflowY: 'auto' },
+    detailAvatar: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' },
+    detailAvatarCircle: { width: 80, height: 80, borderRadius: '50%', backgroundColor: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem' },
+    detailName: { margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' },
+    detailEmail: { fontSize: '0.9rem', color: '#64748b', marginTop: '0.25rem' },
+    
+    historySection: { background: 'white', borderRadius: '12px', padding: '1.25rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+    sectionTitle: { margin: '0 0 0.5rem 0', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' },
+    emptyHistory: { fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '1rem' },
+    historyList: { display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' },
+    historyCard: { padding: '0.75rem', borderRadius: '8px', border: '1px solid #f1f5f9', backgroundColor: '#f8fafc' },
+    historyTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' },
+    historyDate: { fontSize: '0.75rem', color: '#64748b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' },
+    statusCompleted: { fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', background: '#dcfce7', color: '#166534' },
+    statusPending: { fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', background: '#fef3c7', color: '#92400e' },
+    statusCancelled: { fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', background: '#fee2e2', color: '#991b1b' },
+    assignedCounselor: { fontSize: '0.85rem', color: '#334155' },
 };
 
 export default AdminUsers;

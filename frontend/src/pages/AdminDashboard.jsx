@@ -120,7 +120,7 @@ const AdminDashboard = () => {
                 <div style={s.topBar}>
                     <div style={s.searchContainer}>
                         <Search size={18} color="#94a3b8" />
-                        <input type="text" placeholder="Counselor Management" style={s.searchInput} />
+                        <input type="text" placeholder="Search..." style={s.searchInput} />
                     </div>
                     
                 </div>
@@ -147,7 +147,7 @@ const AdminDashboard = () => {
                             <StatCard
                                 title="TOTAL APPOINTMENTS"
                                 value={stats.appointments.total || 240}
-                                sub={<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><span style={{color: '#2563eb', fontWeight: 600}}>↗ +12%</span> from last month</span>}
+                                sub={<span style={{display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500}}><CheckCircle size={14} color="#1c3087ff" /> Total No of Appoinments</span>}
                                 leftBorder={true}
                                 gradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
                                 borderColor="#3b82f6"

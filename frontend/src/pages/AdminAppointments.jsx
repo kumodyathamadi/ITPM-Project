@@ -26,6 +26,10 @@ const AdminAppointments = () => {
     
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateFilter, setDateFilter] = useState('');
+    const [selectedApt, setSelectedApt] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         fetchAppointments();
@@ -39,6 +43,38 @@ const AdminAppointments = () => {
             console.error('Failed to fetch appointments:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            // BACKEND CONNECTION REMOVED AS REQUESTED
+            // await api.put(`/api/appointments/${id}/status`, { status: newStatus });
+            
+            // Only update frontend state for now
+            setAppointments(appointments.map(a => a._id === id ? { ...a, status: newStatus } : a));
+            if (selectedApt && selectedApt._id === id) {
+                setSelectedApt({ ...selectedApt, status: newStatus });
+            }
+        } catch (error) {
+            alert('Failed to update status');
+        }
+    };
+
+    const handleResolve = async (id) => {
+        if (window.confirm('Resolve and safely close this cancelled appointment?')) {
+            try {
+                // BACKEND CONNECTION REMOVED AS REQUESTED
+                // await api.delete(`/api/admin/appointments/${id}`);
+                
+                // Only update frontend state for now
+                setAppointments(appointments.filter(a => a._id !== id));
+                if (selectedApt && selectedApt._id === id) {
+                    setIsModalOpen(false);
+                }
+            } catch (error) {
+                alert('Failed to resolve appointment');
+            }
         }
     };
 
@@ -72,12 +108,19 @@ const AdminAppointments = () => {
             <div style={s.mainWrapper}>
                 {/* Top Navbar */}
                 <div style={s.topNav}>
-                    <div style={s.searchContainer}>
-                        <Search size={16} color="#94a3b8" />
-                        <input type="text" placeholder="Search sessions or counselors..." style={s.searchInput} />
+                    <div style={{ display: 'flex', gap: '1rem', flex: 1 }}>
+                        <div style={s.searchContainer}>
+                            <Search size={16} color="#94a3b8" />
+                            <input 
+                                type="text" 
+                                placeholder="Search sessions or counselors..." 
+                                style={s.searchInput} 
+                                value={searchQuery} 
+                                onChange={(e) => setSearchQuery(e.target.value)} 
+                            />
+                        </div>
+                        {/* Calendar date filter removed temporarily as requested */}
                     </div>
-                    
-                  
                 </div>
 
                 {/* Page Content */}
@@ -106,10 +149,26 @@ const AdminAppointments = () => {
                                 </div>
                                 
                                 <div style={s.timelineList}>
-                                    {appointments.length === 0 ? (
-                                        <div style={{color: '#64748b'}}>No appointments found.</div>
-                                    ) : (
-                                        appointments.map((apt) => {
+                                    {(() => {
+                                        const filteredAppointments = appointments.filter(apt => {
+                                            const matchesSearch = 
+                                                (apt.studentId?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                                (apt.counselorId?.userId?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+                                            
+                                            let matchesDate = true;
+                                            if (dateFilter) {
+                                                const isoDateStr = new Date(apt.date).toISOString().split('T')[0];
+                                                matchesDate = isoDateStr === dateFilter;
+                                            }
+
+                                            return matchesSearch && matchesDate;
+                                        });
+
+                                        if (filteredAppointments.length === 0) {
+                                            return <div style={{color: '#64748b', padding: '1rem 0'}}>No appointments found matching your criteria.</div>;
+                                        }
+
+                                        return filteredAppointments.map((apt) => {
                                             const patientName = apt.studentId?.name || 'Unknown';
                                             const doctorName = apt.counselorId?.userId?.name || 'Unknown';
                                             const doctorSpec = apt.counselorId?.specialty || 'General';
@@ -137,7 +196,7 @@ const AdminAppointments = () => {
                                             }
 
                                             return (
-                                                <div key={apt._id} style={sessionStyle}>
+                                                <div key={apt._id} style={{ ...sessionStyle, cursor: 'pointer', transition: 'transform 0.1s' }} onClick={() => { setSelectedApt(apt); setIsModalOpen(true); }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
                                                     <div style={s.timeCol}>
                                                         <span style={s.timeLabel}>{timeLabel}</span>
                                                         <span style={s.timeValue}>{apt.time?.split('-')[0] || apt.time}</span>
@@ -155,11 +214,18 @@ const AdminAppointments = () => {
                                                     </div>
                                                     <div style={s.statusCol}>
                                                         <span style={badgeStyle}>{badgeText}</span>
+                                                        {isPending && (
+                                                            <div style={s.quickActions}>
+                                                                <button style={s.btnApproveSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'approved'); }}>Approve</button>
+                                                                <button style={s.btnRejectSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'rejected'); }}>Reject</button>
+                                                            </div>
+                                                        )}
+                                                        {/* Resolve button disabled for now per user request */}
                                                     </div>
                                                 </div>
                                             );
-                                        })
-                                    )}
+                                        });
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -203,6 +269,50 @@ const AdminAppointments = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Appointment Detail Modal */}
+            {isModalOpen && selectedApt && (
+                <div style={s.modalOverlay} onClick={() => setIsModalOpen(false)}>
+                    <div style={s.modalContent} onClick={e => e.stopPropagation()}>
+                        <div style={s.modalHeader}>
+                            <h3 style={s.modalTitle}>Session Details</h3>
+                            <button style={s.modalClose} onClick={() => setIsModalOpen(false)}>✕</button>
+                        </div>
+                        <div style={s.modalBody}>
+                            <div style={s.detailRow}>
+                                <strong>Date & Time:</strong> {new Date(selectedApt.date).toLocaleDateString()} at {selectedApt.time}
+                            </div>
+                            <div style={s.detailRow}>
+                                <strong>Student:</strong> {selectedApt.studentId?.name || 'Unknown'} ({selectedApt.studentId?.email || 'N/A'})
+                            </div>
+                            <div style={s.detailRow}>
+                                <strong>Counselor:</strong> {selectedApt.counselorId?.userId?.name || 'Unknown'}
+                            </div>
+                            <div style={s.detailRow}>
+                                <strong>Problem Type:</strong> {selectedApt.problemType || 'Not Specified'}
+                            </div>
+                            <div style={s.detailRow}>
+                                <strong>Status:</strong> {selectedApt.status.toUpperCase()}
+                            </div>
+                            
+                            <div style={s.modalActions}>
+                                                {(selectedApt.status === 'approved' || selectedApt.status === 'completed') && (
+                                                    <button style={s.btnJoin} onClick={() => window.open('https://meet.google.com/new', '_blank')}>
+                                                        <Video size={16} /> Join Virtual Session
+                                                    </button>
+                                                )}
+                                                {selectedApt.status === 'pending' && (
+                                                    <>
+                                                        <button style={s.btnApprove} onClick={() => handleUpdateStatus(selectedApt._id, 'approved')}>Approve Session</button>
+                                                        <button style={s.btnReject} onClick={() => handleUpdateStatus(selectedApt._id, 'rejected')}>Reject Session</button>
+                                                    </>
+                                                )}
+                                                {/* Resolve button disabled for now per user request */}
+                                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -225,8 +335,11 @@ const s = {
     
     // Top Nav
     topNav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 3rem', backgroundColor: 'white', borderBottom: '1px solid #f1f5f9' },
-    searchContainer: { display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '0.5rem 1rem', width: '400px' },
+    searchContainer: { display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '0.5rem 1rem', width: '350px' },
     searchInput: { border: 'none', outline: 'none', backgroundColor: 'transparent', marginLeft: '0.5rem', fontSize: '0.9rem', width: '100%', color: '#334155' },
+    filterContainer: { display: 'flex', alignItems: 'center', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '0.5rem 1rem', width: '220px' },
+    dateInput: { border: 'none', outline: 'none', backgroundColor: 'transparent', marginLeft: '0.5rem', fontSize: '0.9rem', color: '#334155', width: '100%', cursor: 'pointer' },
+    clearDateBtn: { background: 'none', border: 'none', color: '#ef4444', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 },
     topNavRight: { display: 'flex', alignItems: 'center', gap: '1.5rem' },
     topNavText: { fontWeight: 600, color: '#334155', fontSize: '0.95rem', marginRight: '1rem' },
     iconBtn: { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' },
@@ -273,9 +386,14 @@ const s = {
     patientName: { fontWeight: 600, color: '#334155', fontSize: '0.9rem', marginBottom: '0.25rem' },
     locationText: { display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem' },
 
-    statusCol: { width: '110px', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 },
+    statusCol: { width: '130px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: '0.5rem', flexShrink: 0 },
     statusBadgeInProgress: { backgroundColor: '#a5f3fc', color: '#0891b2', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 },
     statusBadgeScheduled: { backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 },
+
+    quickActions: { display: 'flex', gap: '0.4rem' },
+    btnApproveSm: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
+    btnRejectSm: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
+    btnResolveSm: { backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
 
     // Right Widgets
     statsCard: { backgroundColor: '#c9c4f7ff', borderRadius: '16px', padding: '2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
@@ -287,7 +405,21 @@ const s = {
 
     // Banner
     bannerContainer: { width: '100%', borderRadius: '16px', overflow: 'hidden', height: '280px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
-    bannerImage: { width: '100%', height: '100%', objectFit: 'cover' }
+    bannerImage: { width: '100%', height: '100%', objectFit: 'cover' },
+
+    // Modal Styles
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 },
+    modalContent: { backgroundColor: 'white', borderRadius: '16px', width: '90%', maxWidth: '500px', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' },
+    modalHeader: { padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    modalTitle: { margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' },
+    modalClose: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.5rem', padding: 0, fontWeight: 700, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    modalBody: { padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' },
+    detailRow: { fontSize: '0.95rem', color: '#334155', paddingBottom: '0.5rem', borderBottom: '1px solid #f8fafc' },
+    modalActions: { marginTop: '1rem', display: 'flex', gap: '0.75rem' },
+    btnJoin: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.2s' },
+    btnApprove: { flex: 1, backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
+    btnReject: { flex: 1, backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
+    btnResolve: { flex: 1, backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
 };
 
 export default AdminAppointments;

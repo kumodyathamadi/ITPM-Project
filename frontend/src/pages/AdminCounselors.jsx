@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { 
     Users, LayoutGrid, Award, CalendarCheck, Settings, LogOut, 
     Search, Bell, HelpCircle, User, Plus, HeartPulse, Eye, Edit2, 
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, X, UserPlus, Trash2, Power
 } from 'lucide-react';
 
 const NavItem = ({ icon, label, to, active, onClick }) => {
@@ -28,18 +28,94 @@ const AdminCounselors = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
+    const [showForm, setShowForm] = useState(false);
+    const [specialties, setSpecialties] = useState([]);
+    const [formData, setFormData] = useState({
+        name: '', email: '', password: '', specialty: '',
+        availableDays: ['Monday', 'Wednesday', 'Friday'],
+        availableTimeSlots: ['09:00-10:00', '13:00-14:00'],
+    });
+
+    const [selectedCounselor, setSelectedCounselor] = useState(null);
+    const [viewMode, setViewMode] = useState(null); 
+    const [updateData, setUpdateData] = useState({ name: '', specialty: '' });
+
     useEffect(() => {
-        fetchCounselors();
+        fetchMainData();
     }, []);
 
-    const fetchCounselors = async () => {
+    const fetchMainData = async () => {
         try {
-            const res = await api.get('/api/admin/counselors');
-            setCounselors(res.data);
+            const [counselorsRes, specialtiesRes] = await Promise.all([
+                api.get('/api/admin/counselors'),
+                api.get('/api/admin/specialties')
+            ]);
+            setCounselors(counselorsRes.data);
+            setSpecialties(specialtiesRes.data);
         } catch (e) {
-            console.error('Failed to fetch counselors', e);
+            console.error('Failed to fetch data', e);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCreateCounselor = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/api/admin/counselors', formData);
+            setShowForm(false);
+            setFormData({ name: '', email: '', password: '', specialty: '', availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
+            fetchMainData();
+        } catch (error) {
+            alert(error.response?.data?.message || 'Error creating counselor');
+        }
+    };
+
+    const toggleStatus = async (userId, currentStatus) => {
+        if (!userId) return;
+        try {
+            // BACKEND CONNECTION REMOVED
+            // await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
+            // fetchMainData();
+            setCounselors(counselors.map(c => c.userId?._id === userId ? { ...c, userId: { ...c.userId, isActive: !currentStatus } } : c));
+        } catch { 
+            alert('Error updating status'); 
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if(window.confirm('Are you sure you want to permanently delete this counselor?')) {
+            try {
+                // BACKEND CONNECTION REMOVED
+                // await api.delete(`/api/admin/counselors/${id}`);
+                // fetchMainData();
+                setCounselors(counselors.filter(c => c._id !== id));
+            } catch { 
+                alert('Error deleting counselor'); 
+            }
+        }
+    };
+
+    const openUpdateModal = (c) => {
+        setSelectedCounselor(c);
+        setUpdateData({
+            name: c.userId?.name || '',
+            specialty: c.specialty || ''
+        });
+        setViewMode('edit');
+    };
+
+    const handleUpdateCounselor = async (e) => {
+        e.preventDefault();
+        try {
+            // BACKEND CONNECTION REMOVED
+            // await api.put(`/api/admin/counselors/${selectedCounselor._id}`, updateData);
+            setCounselors(counselors.map(c => c._id === selectedCounselor._id ? { ...c, specialty: updateData.specialty, userId: { ...c.userId, name: updateData.name } } : c));
+            setViewMode(null);
+            setSelectedCounselor(null);
+            // fetchMainData();
+        } catch { 
+            alert('Error updating counselor'); 
         }
     };
 
@@ -85,7 +161,19 @@ const AdminCounselors = () => {
 
             {/* Main Content Area */}
             <div style={s.mainWrapper}>
-                
+                {/* Topbar */}
+                <div style={s.topBar}>
+                    <div style={s.searchContainer}>
+                        <Search size={18} color="#94a3b8" />
+                        <input 
+                            type="text" 
+                            placeholder="Search counselors..." 
+                            style={s.searchInput} 
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
 
                 {/* Page Content */}
                 <div style={s.contentScroll}>
@@ -96,25 +184,16 @@ const AdminCounselors = () => {
                             <h1 style={s.pageTitle}>Manage Counselors</h1>
                             <p style={s.pageSub}>Manage clinical staff, specializations, and availability status.</p>
                         </div>
-                        <button style={s.primaryBtnDark}>
-                            <Plus size={16} /> Add Counselor
+                        <button 
+                            style={showForm ? s.cancelBtn : s.primaryBtnDark} 
+                            onClick={() => setShowForm(!showForm)}
+                        >
+                            {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add Counselor</>}
                         </button>
                     </div>
 
-                    {/* Top Widgets Row: Search & Active Badge */}
+                    {/* Top Widgets Row */}
                     <div style={s.widgetsRow}>
-                        {/* Custom Search Box */}
-                        <div style={s.searchWidgetCard}>
-                            <div style={s.thickSearchWrap}>
-                                <input 
-                                    style={s.thickInput} 
-                                    placeholder="Search ..." 
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
                         {/* Active Badge Card */}
                         <div style={s.activeBadgeCard}>
                             <div>
@@ -126,6 +205,55 @@ const AdminCounselors = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Add Counselor Form */}
+                    {showForm && (
+                        <div style={s.formCard}>
+                            <div style={s.formCardHeader}>
+                                <UserPlus size={20} />
+                                <h3 style={{ margin: 0 }}>Add New Counselor</h3>
+                            </div>
+                            <form onSubmit={handleCreateCounselor} style={s.formGrid}>
+                                {[
+                                    { label: 'Full Name', key: 'name', type: 'text' },
+                                    { label: 'Email', key: 'email', type: 'email' },
+                                    { label: 'Password', key: 'password', type: 'password' },
+                                    { label: 'Specialty', key: 'specialty', type: 'select' },
+                                ].map(({ label, key, type }) => (
+                                    <div key={key} style={s.fieldGroup}>
+                                        <label style={s.label}>{label}</label>
+                                        {type === 'select' ? (
+                                            <select
+                                                style={s.input}
+                                                required
+                                                value={formData[key]}
+                                                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                                            >
+                                                <option value="" disabled>Select a specialty...</option>
+                                                {specialties.map(spec => (
+                                                    <option key={spec._id} value={spec.name}>{spec.name}</option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type={type}
+                                                style={s.input}
+                                                required
+                                                value={formData[key]}
+                                                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                                                placeholder={label}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                                <div style={{ gridColumn: '1/-1' }}>
+                                    <button type="submit" style={s.primaryBtnDark}>
+                                        <Plus size={16} /> Submit
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
 
                     {/* Main Table Card */}
                     <div style={s.tableContainer}>
@@ -184,8 +312,18 @@ const AdminCounselors = () => {
                                             </td>
                                             <td style={{...s.td, textAlign: 'right'}}>
                                                 <div style={s.actionBtns}>
-                                                    <button style={s.iconActionBtn}><Eye size={16} /></button>
-                                                    <button style={s.iconActionBtn}><Edit2 size={16} /></button>
+                                                    <button style={s.iconActionBtnDestructive} title="Delete">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                    <button style={s.iconActionBtn} title={c.userId?.isActive ? "Deactivate" : "Activate"}>
+                                                        <Power size={16} color={c.userId?.isActive ? "#64748b" : "#10b981"} />
+                                                    </button>
+                                                    <button style={s.iconActionBtn} title="Update">
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button style={s.iconActionBtn} title="View Details">
+                                                        <Eye size={16} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -206,11 +344,68 @@ const AdminCounselors = () => {
                             </div>
                         </div>
                     </div>
-
                     
-
                 </div>
             </div>
+
+            {/* Modal Overlay for View/Edit Content */}
+            {viewMode && selectedCounselor && (
+                <div style={s.modalOverlay}>
+                    <div style={s.modalContent}>
+                        <div style={s.modalHeader}>
+                            <h3 style={s.modalTitle}>
+                                {viewMode === 'view' ? 'Counselor Details' : 'Update Counselor'}
+                            </h3>
+                            <button style={s.modalClose} onClick={() => { setViewMode(null); setSelectedCounselor(null); }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        {viewMode === 'view' ? (
+                            <div style={s.modalBodyDetail}>
+                                <div style={s.detailAvatar}>
+                                    <div style={s.detailAvatarCircle}>{selectedCounselor.userId?.name?.charAt(0) || 'C'}</div>
+                                    <h4 style={s.detailName}>{selectedCounselor.userId?.name || 'Unknown'}</h4>
+                                    <div style={s.detailEmail}>{selectedCounselor.userId?.email || 'N/A'}</div>
+                                </div>
+                                <div style={s.detailSection}>
+                                    <div style={s.detailRow}><strong>Specialty:</strong> {selectedCounselor.specialty || 'General'}</div>
+                                    <div style={s.detailRow}><strong>Status:</strong> {selectedCounselor.userId?.isActive ? 'Active' : 'Missing/Inactive'}</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleUpdateCounselor} style={s.modalForm}>
+                                <div style={s.formGroup}>
+                                    <label style={s.label}>Full Name</label>
+                                    <input 
+                                        style={s.inputModal} 
+                                        required 
+                                        value={updateData.name} 
+                                        onChange={e => setUpdateData({...updateData, name: e.target.value})} 
+                                    />
+                                </div>
+                                <div style={s.formGroup}>
+                                    <label style={s.label}>Specialty</label>
+                                    <select 
+                                        style={s.inputModal} 
+                                        required
+                                        value={updateData.specialty} 
+                                        onChange={e => setUpdateData({...updateData, specialty: e.target.value})}
+                                    >
+                                        <option value="" disabled>Select a specialty...</option>
+                                        {specialties.map(spec => (
+                                            <option key={spec._id} value={spec.name}>{spec.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={s.modalFooter}>
+                                    <button type="button" style={s.btnCancelModal} onClick={() => setViewMode(null)}>Cancel</button>
+                                    <button type="submit" style={s.btnSaveModal}>Update Details</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -251,9 +446,24 @@ const s = {
         background: '#0f172a', color: 'white',
         fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
     },
+    cancelBtn: {
+        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+        padding: '0.75rem 1.5rem', borderRadius: '8px',
+        border: '1.5px solid #e2e8f0', background: 'white',
+        color: '#64748b', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+    },
+
+    // Add Counselor Form
+    formCard: { background: 'white', borderRadius: '1rem', padding: '1.75rem', marginBottom: '2rem', boxShadow: '0 1px 12px rgba(0,0,0,0.06)', border: '2px solid #e2e8f0' },
+    formCardHeader: { display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#0f172a', fontWeight: 700, fontSize: '1.05rem', marginBottom: '1.5rem' },
+    formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '1rem' },
+    fieldGroup: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+    label: { fontSize: '0.82rem', fontWeight: 600, color: '#374151' },
+    input: { padding: '0.7rem 1rem', border: '1.5px solid #e2e8f0', borderRadius: '0.65rem', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', color: '#0f172a', transition: 'border-color 0.2s' },
+
 
     // Upper Widgets Row
-    widgetsRow: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' },
+    widgetsRow: { display: 'flex', gap: '1.5rem', marginBottom: '1.5rem' },
     searchWidgetCard: { background: 'white', borderRadius: '12px', padding: '1.5rem', display: 'flex', alignItems: 'center' },
     thickSearchWrap: { width: '100%', maxWidth: '320px', border: '3px solid #0f172a', padding: '0.75rem 1rem' },
     thickInput: { width: '100%', border: 'none', outline: 'none', fontSize: '1rem', fontWeight: 700, color: '#0f172a' },
@@ -286,8 +496,11 @@ const s = {
     availInactive: { background: '#e2e8f0', color: '#334155', padding: '0.35rem 0.85rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 700, display: 'inline-block', minWidth: '95px', textAlign: 'center' },
     
     // Actions
-    actionBtns: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '1rem' },
-    iconActionBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex' },
+    actionBtns: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.8rem' },
+    iconActionBtn: { background: 'white', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', transition: 'all 0.15s' },
+    iconActionBtnDestructive: { background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '6px', transition: 'all 0.15s' },
+    btnDeactivate: { background: 'white', border: '1px solid #e2e8f0', color: '#64748b', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
+    btnActivate: { background: '#0f172a', border: '1px solid #0f172a', color: 'white', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' },
 
     // Pagination
     paginationWrap: { padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', borderTop: 'none' },
@@ -296,6 +509,27 @@ const s = {
     pageArrow: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: '0 0.25rem' },
     pageNumber: { background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' },
     pageNumberActive: { background: 'none', border: 'none', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, cursor: 'default' },
+
+    // Modal Styles
+    modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+    modalContent: { backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '450px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', overflow: 'hidden' },
+    modalHeader: { padding: '1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    modalTitle: { margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' },
+    modalClose: { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.25rem' },
+    modalForm: { padding: '1.5rem' },
+    inputModal: { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#0f172a', outline: 'none', boxSizing: 'border-box' },
+    modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' },
+    btnCancelModal: { padding: '0.75rem 1.25rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' },
+    btnSaveModal: { padding: '0.75rem 1.25rem', borderRadius: '8px', border: 'none', background: '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' },
+    
+    // View mode detailed styles
+    modalBodyDetail: { padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: '#f8fafc' },
+    detailAvatar: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1.5rem' },
+    detailAvatarCircle: { width: 80, height: 80, borderRadius: '50%', backgroundColor: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem' },
+    detailName: { margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' },
+    detailEmail: { fontSize: '0.9rem', color: '#64748b', marginTop: '0.25rem' },
+    detailSection: { background: 'white', width: '100%', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+    detailRow: { display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155' },
 
     // Bottom Stats
     bottomStatsRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' },
