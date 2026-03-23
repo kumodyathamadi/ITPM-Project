@@ -31,10 +31,11 @@ const AdminCounselors = () => {
     const [showForm, setShowForm] = useState(false);
     const [specialties, setSpecialties] = useState([]);
     const [formData, setFormData] = useState({
-        name: '', email: '', password: '', specialty: '',
+        name: '', email: '', password: '', phone: '', specialty: '', photo: '',
         availableDays: ['Monday', 'Wednesday', 'Friday'],
         availableTimeSlots: ['09:00-10:00', '13:00-14:00'],
     });
+    const [formErrors, setFormErrors] = useState({});
 
     const [selectedCounselor, setSelectedCounselor] = useState(null);
     const [viewMode, setViewMode] = useState(null); 
@@ -59,12 +60,51 @@ const AdminCounselors = () => {
         }
     };
 
+    const validateForm = () => {
+        const errors = {};
+        
+        // Full Name validation: alphabets and spaces only, min 3 chars
+        if (!formData.name.trim()) errors.name = 'Full Name is required';
+        else if (!/^[a-zA-Z\s]{3,}$/.test(formData.name)) errors.name = 'Name must be at least 3 characters and contain only letters';
+
+        // Email Address validation
+        if (!formData.email.trim()) errors.email = 'Email Address is required';
+        else if (!/^\S+@\S+\.\S+$/.test(formData.email)) errors.email = 'Invalid email format';
+
+        // Password validation: min 8 length, 1 uppercase, 1 lowercase, 1 number, 1 special char
+        if (!formData.password) errors.password = 'Password is required';
+        else if (!/(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}/.test(formData.password)) {
+            errors.password = 'Password must be at least 8 chars with uppercase, lowercase, number, and special character';
+        }
+
+        // Phone Number validation: exactly 10 digits
+        if (!formData.phone.trim()) errors.phone = 'Phone Number is required';
+        else if (!/^\d{10}$/.test(formData.phone.replace(/[\s-]/g, ''))) {
+            errors.phone = 'Phone Number must be 10 digits';
+        }
+
+        // Specialty validation
+        if (!formData.specialty) errors.specialty = 'Specialty is required';
+
+        // Profile Photo validation (URL format for now)
+        if (formData.photo && !/^(http|https):\/\/[^ "]+$/.test(formData.photo)) {
+            errors.photo = 'Profile Photo must be a valid URL';
+        } else if (!formData.photo) {
+            errors.photo = 'Profile Photo is required';
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleCreateCounselor = async (e) => {
         e.preventDefault();
+        if (!validateForm()) return;
         try {
             await api.post('/api/admin/counselors', formData);
             setShowForm(false);
-            setFormData({ name: '', email: '', password: '', specialty: '', availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
+            setFormData({ name: '', email: '', password: '', phone: '', specialty: '', photo: '', availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
+            setFormErrors({});
             fetchMainData();
         } catch (error) {
             alert(error.response?.data?.message || 'Error creating counselor');
@@ -186,7 +226,10 @@ const AdminCounselors = () => {
                         </div>
                         <button 
                             style={showForm ? s.cancelBtn : s.primaryBtnDark} 
-                            onClick={() => setShowForm(!showForm)}
+                            onClick={() => {
+                                setShowForm(!showForm);
+                                setFormErrors({});
+                            }}
                         >
                             {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add Counselor</>}
                         </button>
@@ -216,18 +259,22 @@ const AdminCounselors = () => {
                             <form onSubmit={handleCreateCounselor} style={s.formGrid}>
                                 {[
                                     { label: 'Full Name', key: 'name', type: 'text' },
-                                    { label: 'Email', key: 'email', type: 'email' },
+                                    { label: 'Email Address', key: 'email', type: 'email' },
                                     { label: 'Password', key: 'password', type: 'password' },
+                                    { label: 'Phone Number', key: 'phone', type: 'tel' },
                                     { label: 'Specialty', key: 'specialty', type: 'select' },
+                                    { label: 'Profile Photo (URL)', key: 'photo', type: 'text' },
                                 ].map(({ label, key, type }) => (
                                     <div key={key} style={s.fieldGroup}>
                                         <label style={s.label}>{label}</label>
                                         {type === 'select' ? (
                                             <select
-                                                style={s.input}
-                                                required
+                                                style={formErrors[key] ? {...s.input, borderColor: '#ef4444'} : s.input}
                                                 value={formData[key]}
-                                                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                                                onChange={e => {
+                                                    setFormData({ ...formData, [key]: e.target.value });
+                                                    if (formErrors[key]) setFormErrors({...formErrors, [key]: null});
+                                                }}
                                             >
                                                 <option value="" disabled>Select a specialty...</option>
                                                 {specialties.map(spec => (
@@ -237,16 +284,19 @@ const AdminCounselors = () => {
                                         ) : (
                                             <input
                                                 type={type}
-                                                style={s.input}
-                                                required
+                                                style={formErrors[key] ? {...s.input, borderColor: '#ef4444'} : s.input}
                                                 value={formData[key]}
-                                                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                                                onChange={e => {
+                                                    setFormData({ ...formData, [key]: e.target.value });
+                                                    if (formErrors[key]) setFormErrors({...formErrors, [key]: null});
+                                                }}
                                                 placeholder={label}
                                             />
                                         )}
+                                        {formErrors[key] && <span style={s.errorText}>{formErrors[key]}</span>}
                                     </div>
                                 ))}
-                                <div style={{ gridColumn: '1/-1' }}>
+                                <div style={{ gridColumn: '1/-1', marginTop: '1rem' }}>
                                     <button type="submit" style={s.primaryBtnDark}>
                                         <Plus size={16} /> Submit
                                     </button>
@@ -460,6 +510,7 @@ const s = {
     fieldGroup: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
     label: { fontSize: '0.82rem', fontWeight: 600, color: '#374151' },
     input: { padding: '0.7rem 1rem', border: '1.5px solid #e2e8f0', borderRadius: '0.65rem', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', color: '#0f172a', transition: 'border-color 0.2s' },
+    errorText: { color: '#ef4444', fontSize: '0.75rem', fontWeight: 500, marginTop: '0.2rem' },
 
 
     // Upper Widgets Row

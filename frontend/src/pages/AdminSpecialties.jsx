@@ -27,9 +27,22 @@ const AdminSpecialties = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({ name: '', sub: '', desc: '' });
+    const [errors, setErrors] = useState({});
 
     const location = useLocation();
     const navigate = useNavigate();
+
+    const openModal = () => {
+        setFormData({ name: '', sub: '', desc: '' });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setFormData({ name: '', sub: '', desc: '' });
+        setErrors({});
+    };
 
     useEffect(() => {
         fetchSpecialties();
@@ -63,8 +76,49 @@ const AdminSpecialties = () => {
         }
     };
 
+    const validateForm = () => {
+        const newErrors = {};
+
+        const name = formData.name.trim();
+        if (!name) {
+            newErrors.name = 'Specialty name is required';
+        } else if (name.length < 3 || name.length > 80) {
+            newErrors.name = 'Name must be between 3 and 80 characters';
+        } else if (!/^[A-Za-z\s]+$/.test(name)) {
+            newErrors.name = 'Name can only contain letters and spaces';
+        } else if (specialties.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+            newErrors.name = 'This specialty name already exists';
+        }
+
+        const sub = formData.sub.trim();
+        if (!sub) {
+            newErrors.sub = 'Clinical focus is required';
+        } else if (sub.length < 3 || sub.length > 100) {
+            newErrors.sub = 'Clinical focus must be between 3 and 100 characters';
+        }
+
+        const desc = formData.desc.trim();
+        if (!desc) {
+            newErrors.desc = 'Description is required';
+        } else if (desc.length < 10 || desc.length > 500) {
+            newErrors.desc = 'Description must be between 10 and 500 characters';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: null }));
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validateForm()) return;
+
         try {
             // Assign a random color aesthetic to match the design style
             const themes = [
@@ -84,8 +138,7 @@ const AdminSpecialties = () => {
 
             const res = await api.post('/api/admin/specialties', payload);
             setSpecialties([...specialties, res.data]);
-            setIsModalOpen(false);
-            setFormData({ name: '', sub: '', desc: '' });
+            closeModal();
         } catch (e) {
             console.error('Failed to create specialty', e);
             alert('Failed to save specialty');
@@ -155,7 +208,7 @@ const AdminSpecialties = () => {
                             <h1 style={s.pageTitle}>Specialty Management</h1>
                             <p style={s.pageSub}>Organize clinical focus areas and counselor distribution.</p>
                         </div>
-                        <button style={s.primaryBtnDark} onClick={() => setIsModalOpen(true)}>
+                        <button style={s.primaryBtnDark} onClick={openModal}>
                             <Plus size={16} /> Define Specialty
                         </button>
                     </div>
@@ -233,7 +286,7 @@ const AdminSpecialties = () => {
                     <div style={s.modalContent}>
                         <div style={s.modalHeader}>
                             <h3 style={s.modalTitle}>Define New Specialty</h3>
-                            <button style={s.modalClose} onClick={() => setIsModalOpen(false)}>
+                            <button style={s.modalClose} onClick={closeModal}>
                                 <X size={20} />
                             </button>
                         </div>
@@ -241,35 +294,41 @@ const AdminSpecialties = () => {
                             <div style={s.formGroup}>
                                 <label style={s.label}>SPECIALTY NAME</label>
                                 <input 
-                                    style={s.input} 
+                                    style={errors.name ? { ...s.input, borderColor: '#ef4444' } : s.input} 
                                     placeholder="e.g. Mental Health"
-                                    required
                                     value={formData.name}
-                                    onChange={e => setFormData({...formData, name: e.target.value})}
+                                    onChange={e => handleChange('name', e.target.value)}
                                 />
+                                {errors.name && <div style={s.errorText}>{errors.name}</div>}
                             </div>
                             <div style={s.formGroup}>
                                 <label style={s.label}>CLINICAL FOCUS (Sub-title)</label>
                                 <input 
-                                    style={s.input} 
+                                    style={errors.sub ? { ...s.input, borderColor: '#ef4444' } : s.input} 
                                     placeholder="e.g. Primary Clinical Care"
                                     value={formData.sub}
-                                    onChange={e => setFormData({...formData, sub: e.target.value})}
+                                    onChange={e => handleChange('sub', e.target.value)}
                                 />
+                                {errors.sub && <div style={s.errorText}>{errors.sub}</div>}
                             </div>
                             <div style={s.formGroup}>
-                                <label style={s.label}>DESCRIPTION</label>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                    <label style={{ ...s.label, marginBottom: 0 }}>DESCRIPTION</label>
+                                    <span style={{ fontSize: '0.75rem', color: formData.desc.length > 500 ? '#ef4444' : '#64748b' }}>
+                                        {formData.desc.length} / 500
+                                    </span>
+                                </div>
                                 <textarea 
-                                    style={s.textarea} 
+                                    style={errors.desc ? { ...s.textarea, borderColor: '#ef4444' } : s.textarea} 
                                     rows={4}
                                     placeholder="Describe the clinical focus and methodologies..."
-                                    required
                                     value={formData.desc}
-                                    onChange={e => setFormData({...formData, desc: e.target.value})}
+                                    onChange={e => handleChange('desc', e.target.value)}
                                 />
+                                {errors.desc && <div style={s.errorText}>{errors.desc}</div>}
                             </div>
                             <div style={s.modalFooter}>
-                                <button type="button" style={s.btnCancel} onClick={() => setIsModalOpen(false)}>Cancel</button>
+                                <button type="button" style={s.btnCancel} onClick={closeModal}>Cancel</button>
                                 <button type="submit" style={s.btnSave}>Save Specialty</button>
                             </div>
                         </form>
@@ -352,7 +411,8 @@ const s = {
     textarea: { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#0f172a', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical' },
     modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '2rem' },
     btnCancel: { padding: '0.75rem 1.25rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' },
-    btnSave: { padding: '0.75rem 1.25rem', borderRadius: '8px', border: 'none', background: '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }
+    btnSave: { padding: '0.75rem 1.25rem', borderRadius: '8px', border: 'none', background: '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' },
+    errorText: { color: '#ef4444', fontSize: '0.75rem', marginTop: '0.35rem', fontWeight: 500 }
 };
 
 export default AdminSpecialties;
