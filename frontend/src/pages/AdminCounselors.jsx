@@ -31,7 +31,7 @@ const AdminCounselors = () => {
     const [showForm, setShowForm] = useState(false);
     const [specialties, setSpecialties] = useState([]);
     const [formData, setFormData] = useState({
-        name: '', email: '', password: '', phone: '', specialty: '', photo: '',
+        name: '', email: '', password: '', phone: '', specialty: '', photo: null, photoPreview: null,
         availableDays: ['Monday', 'Wednesday', 'Friday'],
         availableTimeSlots: ['09:00-10:00', '13:00-14:00'],
     });
@@ -86,12 +86,10 @@ const AdminCounselors = () => {
         // Specialty validation
         if (!formData.specialty) errors.specialty = 'Specialty is required';
 
-        // Profile Photo validation (URL format for now)
-        if (formData.photo && !/^(http|https):\/\/[^ "]+$/.test(formData.photo)) {
-            errors.photo = 'Profile Photo must be a valid URL';
-        } else if (!formData.photo) {
-            errors.photo = 'Profile Photo is required';
-        }
+        // Profile Photo validation
+        // if (!formData.photo) {
+        //     errors.photo = 'Profile Photo is required';
+        // }
 
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -103,7 +101,7 @@ const AdminCounselors = () => {
         try {
             await api.post('/api/admin/counselors', formData);
             setShowForm(false);
-            setFormData({ name: '', email: '', password: '', phone: '', specialty: '', photo: '', availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
+            setFormData({ name: '', email: '', password: '', phone: '', specialty: '', photo: null, photoPreview: null, availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
             setFormErrors({});
             fetchMainData();
         } catch (error) {
@@ -114,7 +112,7 @@ const AdminCounselors = () => {
     const toggleStatus = async (userId, currentStatus) => {
         if (!userId) return;
         try {
-            // BACKEND CONNECTION REMOVED
+            
             // await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
             // fetchMainData();
             setCounselors(counselors.map(c => c.userId?._id === userId ? { ...c, userId: { ...c.userId, isActive: !currentStatus } } : c));
@@ -126,7 +124,7 @@ const AdminCounselors = () => {
     const handleDelete = async (id) => {
         if(window.confirm('Are you sure you want to permanently delete this counselor?')) {
             try {
-                // BACKEND CONNECTION REMOVED
+                
                 // await api.delete(`/api/admin/counselors/${id}`);
                 // fetchMainData();
                 setCounselors(counselors.filter(c => c._id !== id));
@@ -148,7 +146,7 @@ const AdminCounselors = () => {
     const handleUpdateCounselor = async (e) => {
         e.preventDefault();
         try {
-            // BACKEND CONNECTION REMOVED
+            
             // await api.put(`/api/admin/counselors/${selectedCounselor._id}`, updateData);
             setCounselors(counselors.map(c => c._id === selectedCounselor._id ? { ...c, specialty: updateData.specialty, userId: { ...c.userId, name: updateData.name } } : c));
             setViewMode(null);
@@ -236,18 +234,26 @@ const AdminCounselors = () => {
                     </div>
 
                     {/* Top Widgets Row */}
-                    <div style={s.widgetsRow}>
-                        {/* Active Badge Card */}
-                        <div style={s.activeBadgeCard}>
-                            <div>
-                                <div style={s.activeBadgeLabel}>ACTIVE NOW</div>
-                                <div style={s.activeBadgeValue}>{activeCount} Counselors</div>
-                            </div>
-                            <div style={s.pulseIconWrap}>
-                                <HeartPulse size={24} color="#0f766e" />
-                            </div>
+                   <div style={s.widgetsRow}>
+    
+                    {/* Active Badge Card */}
+                    <div style={s.activeBadgeCard}>
+                        <div>
+                            <div style={s.activeBadgeLabel}>ACTIVE NOW</div>
+                            <div style={s.activeBadgeValue}>{activeCount} Counselors</div>
+                        </div>
+                        <div style={s.pulseIconWrap}>
+                            <HeartPulse size={24} color="#0f766e" />
                         </div>
                     </div>
+
+                    {/* Banner Widget (separate) */}
+                    <div style={s.bannerWidget}>
+                        <div style={s.bannerOverlay}>
+                        </div>
+                    </div>
+
+                </div>
 
                     {/* Add Counselor Form */}
                     {showForm && (
@@ -263,7 +269,7 @@ const AdminCounselors = () => {
                                     { label: 'Password', key: 'password', type: 'password' },
                                     { label: 'Phone Number', key: 'phone', type: 'tel' },
                                     { label: 'Specialty', key: 'specialty', type: 'select' },
-                                    { label: 'Profile Photo (URL)', key: 'photo', type: 'text' },
+                                    { label: 'Profile Photo', key: 'photo', type: 'file' },
                                 ].map(({ label, key, type }) => (
                                     <div key={key} style={s.fieldGroup}>
                                         <label style={s.label}>{label}</label>
@@ -281,6 +287,48 @@ const AdminCounselors = () => {
                                                     <option key={spec._id} value={spec.name}>{spec.name}</option>
                                                 ))}
                                             </select>
+                                        ) : type === 'file' ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.2rem' }}>
+                                                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    {formData.photoPreview ? (
+                                                        <img src={formData.photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <User size={32} color="#94a3b8" />
+                                                    )}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '1rem', marginLeft: 'auto', alignItems: 'center' }}>
+                                                    {formData.photoPreview && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setFormData({...formData, photo: null, photoPreview: null})}
+                                                            style={{ background: 'none', border: 'none', color: '#0f172a', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}
+                                                        >
+                                                            Remove photo
+                                                        </button>
+                                                    )}
+                                                    <label style={{
+                                                        padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#0f172a', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem', display: 'inline-block'
+                                                    }}>
+                                                        {formData.photoPreview ? 'Change photo' : 'Change photo'}
+                                                        <input 
+                                                            type="file" 
+                                                            accept="image/*"
+                                                            style={{ display: 'none' }}
+                                                            onChange={e => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    const reader = new FileReader();
+                                                                    reader.onloadend = () => {
+                                                                        setFormData({ ...formData, photo: file, photoPreview: reader.result });
+                                                                        if (formErrors[key]) setFormErrors({...formErrors, [key]: null});
+                                                                    }
+                                                                    reader.readAsDataURL(file);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
                                         ) : (
                                             <input
                                                 type={type}
@@ -297,7 +345,7 @@ const AdminCounselors = () => {
                                     </div>
                                 ))}
                                 <div style={{ gridColumn: '1/-1', marginTop: '1rem' }}>
-                                    <button type="submit" style={s.primaryBtnDark}>
+                                    <button type="submit" style={s.primaryBtnDark} gridcolumn="1/-1">
                                         <Plus size={16} /> Submit
                                     </button>
                                 </div>
@@ -366,7 +414,7 @@ const AdminCounselors = () => {
                                                         <Trash2 size={16} />
                                                     </button>
                                                     <button style={s.iconActionBtn} title={c.userId?.isActive ? "Deactivate" : "Activate"}>
-                                                        <Power size={16} color={c.userId?.isActive ? "#64748b" : "#10b981"} />
+                                                        <Power size={16} color={c.userId?.isActive ? "#8b6464ff" : "#10b981"} />
                                                     </button>
                                                     <button style={s.iconActionBtn} title="Update">
                                                         <Edit2 size={16} />
@@ -522,7 +570,28 @@ const s = {
     activeBadgeLabel: { fontSize: '0.75rem', fontWeight: 700, color: '#047857', letterSpacing: '0.05em', marginBottom: '0.2rem' },
     activeBadgeValue: { fontSize: '1.5rem', fontWeight: 800, color: '#064e3b', letterSpacing: '-0.02em' },
     pulseIconWrap: { width: 44, height: 44, borderRadius: '50%', background: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-
+    bannerWidget: {
+        flex: 1, 
+        borderRadius: '12px',
+        background: 'linear-gradient(135deg, #b3ecbcff 0%, #65666bff 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+        minHeight: '160px'
+    },
+    bannerOverlay: {
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: 'url("https://i.pinimg.com/736x/cc/45/fe/cc45fe49336c014438a11d26978e9223.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.8,
+        mixBlendMode: 'overlay',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontWeight: 'bold'
+    },
     // Main Table
     tableContainer: { background: 'white', borderRadius: '12px', overflow: 'hidden', marginBottom: '2.5rem' },
     table: { width: '100%', borderCollapse: 'collapse', minWidth: '800px' },

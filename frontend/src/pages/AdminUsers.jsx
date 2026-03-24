@@ -142,7 +142,8 @@ const AdminUsers = () => {
 
                         {/* Banner Widget */}
                         <div style={s.bannerWidget}>
-                            <div style={s.bannerOverlay}></div>
+                            <div style={s.bannerOverlay}>
+                            </div>
                         </div>
                     </div>
 
