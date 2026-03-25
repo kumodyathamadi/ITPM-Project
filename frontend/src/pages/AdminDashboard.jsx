@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../utils/api";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
+} from 'recharts';
 import {
   Users,
   Activity,
@@ -107,6 +111,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [counselors, setCounselors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -128,14 +133,16 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, counselorsRes, specialtiesRes] = await Promise.all([
+      const [statsRes, counselorsRes, specialtiesRes, appointmentsRes] = await Promise.all([
         api.get("/api/admin/stats"),
         api.get("/api/admin/counselors"),
         api.get("/api/admin/specialties"),
+        api.get("/api/admin/appointments"),
       ]);
       setStats(statsRes.data);
       setCounselors(counselorsRes.data);
       setSpecialties(specialtiesRes.data);
+      setAppointments(appointmentsRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -217,6 +224,28 @@ const AdminDashboard = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
   };
+
+  const monthlyData = useMemo(() => {
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const counts = {};
+    appointments.forEach(app => {
+      const d = new Date(app.date);
+      const m = monthNames[d.getMonth()];
+      counts[m] = (counts[m] || 0) + 1;
+    });
+    return monthNames.map(m => ({ name: m, appointments: counts[m] || 0 }));
+  }, [appointments]);
+
+  const counselorData = useMemo(() => {
+    const counts = {};
+    appointments.forEach(app => {
+      const name = app.counselorId?.userId?.name || "Unknown";
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, value: count }));
+  }, [appointments]);
+
+  const COLORS = ["#3b82f6", "#8b5cf6", "#22c55e", "#f97316", "#ef4444", "#0ea5e9"];
 
   if (loading)
     return (
@@ -391,6 +420,62 @@ const AdminDashboard = () => {
                 borderColor="#f97316"
                 textColor="#9a3412"
               />
+            </div>
+          )}
+
+          {/* Charts Section */}
+          {!loading && appointments && (
+            <div style={s.chartsGrid}>
+              <div style={s.chartCard}>
+                <h3 style={s.chartTitle}>Appointments over time (monthly)</h3>
+                <div style={s.chartWrapper}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                      <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <Tooltip
+                        cursor={{ fill: '#f1f5f9' }}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
+                      />
+                      <Bar dataKey="appointments" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={s.chartCard}>
+                <h3 style={s.chartTitle}>Sessions per counselor</h3>
+                <div style={s.chartWrapper}>
+                  {counselorData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={counselorData}
+                          cx="50%"
+                          cy="45%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {counselorData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}
+                        />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
+                      No session data available
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -790,6 +875,31 @@ const s = {
     gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
     gap: "1.25rem",
     marginBottom: "2.5rem",
+  },
+  chartsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
+    gap: "1.25rem",
+    marginBottom: "2.5rem",
+  },
+  chartCard: {
+    backgroundColor: "white",
+    borderRadius: "12px",
+    padding: "1.5rem",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.03)",
+    border: "1px solid #f8fafc",
+    display: "flex",
+    flexDirection: "column",
+  },
+  chartTitle: {
+    margin: "0 0 1.5rem 0",
+    fontSize: "1.1rem",
+    fontWeight: 700,
+    color: "#0f172a",
+  },
+  chartWrapper: {
+    width: "100%",
+    height: "300px",
   },
   statCard: {
     borderRadius: "12px",
