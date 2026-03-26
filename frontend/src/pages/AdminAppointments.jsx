@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { 
-    Users, LayoutGrid, Award, CalendarCheck, User, 
+    Users, LayoutGrid, Award, CalendarCheck, User, CheckCircle,
     Bell, HelpCircle, Search, Filter, Video, Building2, TrendingUp, Clock,
     Radio
 } from 'lucide-react';
@@ -48,10 +48,9 @@ const AdminAppointments = () => {
 
     const handleUpdateStatus = async (id, newStatus) => {
         try {
-            // BACKEND CONNECTION REMOVED AS REQUESTED
+
             // await api.put(`/api/appointments/${id}/status`, { status: newStatus });
             
-            // Only update frontend state for now
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: newStatus } : a));
             if (selectedApt && selectedApt._id === id) {
                 setSelectedApt({ ...selectedApt, status: newStatus });
@@ -64,10 +63,8 @@ const AdminAppointments = () => {
     const handleResolve = async (id) => {
         if (window.confirm('Resolve and safely close this cancelled appointment?')) {
             try {
-                // BACKEND CONNECTION REMOVED AS REQUESTED
                 // await api.delete(`/api/admin/appointments/${id}`);
                 
-                // Only update frontend state for now
                 setAppointments(appointments.filter(a => a._id !== id));
                 if (selectedApt && selectedApt._id === id) {
                     setIsModalOpen(false);
@@ -113,13 +110,12 @@ const AdminAppointments = () => {
                             <Search size={16} color="#94a3b8" />
                             <input 
                                 type="text" 
-                                placeholder="Search sessions or counselors..." 
+                                placeholder="Search appoinments or counselors..." 
                                 style={s.searchInput} 
                                 value={searchQuery} 
                                 onChange={(e) => setSearchQuery(e.target.value)} 
                             />
                         </div>
-                        {/* Calendar date filter removed temporarily as requested */}
                     </div>
                 </div>
 
@@ -141,7 +137,7 @@ const AdminAppointments = () => {
                             <div style={s.timelineCard}>
                                 <div style={s.timelineHeader}>
                                     <h3 style={s.cardTitle}>
-                                        <Radio size={20} color="#0f172a" /> Live Timeline
+                                        <Radio size={20} color="#0f172a" /> Appoinment Schedule
                                     </h3>
                                     <span style={s.liveBadge}>
                                         <span style={s.liveDot}></span> LIVE NOW
@@ -220,7 +216,6 @@ const AdminAppointments = () => {
                                                                 <button style={s.btnRejectSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'rejected'); }}>Reject</button>
                                                             </div>
                                                         )}
-                                                        {/* Resolve button disabled for now per user request */}
                                                     </div>
                                                 </div>
                                             );
@@ -255,7 +250,7 @@ const AdminAppointments = () => {
                                 <div style={s.statsLabel}>COMPLETED SESSIONS</div>
                                 <div style={s.statsValue}>{completedCount}</div>
                                 <div style={s.statsTrendGreen}>
-                                    <TrendingUp size={16} /> Successfully finished
+                                    <CheckCircle size={16} /> Successfully finished
                                 </div>
                             </div>
                             
@@ -263,10 +258,10 @@ const AdminAppointments = () => {
                         </div>
                     </div>
 
-                    {/* Banner Image */}
+                    {/* Banner Image
                     <div style={s.bannerContainer}>
                         <img src="https://i.pinimg.com/736x/7d/15/95/7d1595df9e7ac71ea834f15302235b4e.jpg" alt="Graduation" style={s.bannerImage} />
-                    </div>
+                    </div> */}
                 </div>
             </div>
 
@@ -298,7 +293,7 @@ const AdminAppointments = () => {
                             <div style={s.modalActions}>
                                                 {(selectedApt.status === 'approved' || selectedApt.status === 'completed') && (
                                                     <button style={s.btnJoin} onClick={() => window.open('https://meet.google.com/new', '_blank')}>
-                                                        <Video size={16} /> Join Virtual Session
+                                                        <Video size={16} /> Join Session
                                                     </button>
                                                 )}
                                                 {selectedApt.status === 'pending' && (
@@ -357,10 +352,10 @@ const s = {
     // Layout Grid
     gridContainer: { display: 'grid', gridTemplateColumns: 'minmax(600px, 1.8fr) 1fr', gap: '2rem', marginBottom: '2.5rem' },
     leftCol: { display: 'flex', flexDirection: 'column' },
-    rightCol: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+    rightCol: { display: 'flex', flexDirection: 'column', gap: '1.0rem' },
 
     // Cards
-    timelineCard: { backgroundColor: 'white', borderRadius: '16px', padding: '2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
+    timelineCard: { backgroundColor: 'white', borderRadius: '1p0x', padding: '0.2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
     timelineHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
     cardTitle: { display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' },
     liveBadge: { backgroundColor: '#ccfbf1', color: '#0d9488', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.05em' },
@@ -396,7 +391,7 @@ const s = {
     btnResolveSm: { backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
 
     // Right Widgets
-    statsCard: { backgroundColor: '#c9c4f7ff', borderRadius: '16px', padding: '2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
+    statsCard: { backgroundColor: '#c9c4f7ff', borderRadius: '10px', padding: '2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
     statsLabel: { fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '1rem' },
     statsValue: { fontSize: '3rem', fontWeight: 800, color: '#0f172a', lineHeight: 1, marginBottom: '1rem' },
     statsTrendGreen: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: '#059669' },

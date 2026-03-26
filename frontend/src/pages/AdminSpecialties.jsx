@@ -94,7 +94,7 @@ const AdminSpecialties = () => {
         if (!sub) {
             newErrors.sub = 'Clinical focus is required';
         } else if (sub.length < 3 || sub.length > 100) {
-            newErrors.sub = 'Clinical focus must be between 3 and 100 characters';
+            newErrors.sub = 'Clinical focus at least 3 characters';
         }
 
         const desc = formData.desc.trim();
@@ -122,10 +122,10 @@ const AdminSpecialties = () => {
         try {
             // Assign a random color aesthetic to match the design style
             const themes = [
-                { color: '#5eead4', iconColor: '#14b8a6', icon: 'mind' },
-                { color: '#bfdbfe', iconColor: '#3b82f6', icon: 'heart' },
-                { color: '#e2e8f0', iconColor: '#475569', icon: 'book' },
-                { color: '#fef3c7', iconColor: '#d97706', icon: 'child' }
+                { color: '#5eceea', iconColor: '#14b8a6', icon: 'mind' },
+                { color: '#bfdbfe', iconColor: '#3b57f6', icon: 'heart' },
+                { color: '#f0f0e2', iconColor: '#624769', icon: 'book' },
+                { color: '#fef3c7', iconColor: '#d91406', icon: 'child' }
             ];
             const randTheme = themes[Math.floor(Math.random() * themes.length)];
 
@@ -377,10 +377,10 @@ const s = {
 
     // Upper Widgets
     widgetsRow: { display: 'grid', gridTemplateColumns: 'minmax(250px, 300px) 1fr', gap: '1.5rem', marginBottom: '2rem' },
-    statCard: { background: '#b0c5f0ff', borderRadius: '12px', padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
+    statCard: { background: 'rgb(223, 216, 252)', borderRadius: '12px', padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
     statLabel: { fontSize: '0.75rem', fontWeight: 700, color: '#010202ff', letterSpacing: '0.05em', marginBottom: '0.2rem' },
     statValue: { fontSize: '2rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', lineHeight: 1 },
-    iconBox: { width: 48, height: 48, borderRadius: '12px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    iconBox: { width: 48, height: 48, borderRadius: '12px', background: '#9e96a1', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     emptyBlock: { background: 'linear-gradient(to right, #f8fafc, #f1f5f9)', borderRadius: '12px', opacity: 0.5 },
     bannerWidget: { borderRadius: '12px', background: 'linear-gradient(135deg, #d1d2d4ff 0%, #424346ff 100%)', position: 'relative', overflow: 'hidden', minHeight: '160px' },
     bannerOverlay: { position: 'absolute', inset: 0, backgroundImage: 'url("https://i.pinimg.com/736x/c0/3b/79/c03b797b1d5f087b1ae9e2122104a087.jpg")', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.8, mixBlendMode: 'overlay' },

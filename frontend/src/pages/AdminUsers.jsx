@@ -172,7 +172,7 @@ const AdminUsers = () => {
                         <table style={s.table}>
                             <thead>
                                 <tr style={s.theadTr}>
-                                    <th style={s.th}>NAME & IDENTITY</th>
+                                    <th style={s.th}>NAME</th>
                                     <th style={s.th}>ROLE</th>
                                     <th style={s.th}>JOINED DATE</th>
                                     <th style={s.th}>STATUS</th>

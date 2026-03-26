@@ -113,11 +113,10 @@ const AdminCounselors = () => {
         if (!userId) return;
         try {
             
-            // await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
-            // fetchMainData();
-            setCounselors(counselors.map(c => c.userId?._id === userId ? { ...c, userId: { ...c.userId, isActive: !currentStatus } } : c));
-        } catch { 
-            alert('Error updating status'); 
+            await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
+            await fetchMainData();
+        } catch (error) { 
+            alert(error.response?.data?.message || 'Error updating status'); 
         }
     };
 
@@ -125,11 +124,10 @@ const AdminCounselors = () => {
         if(window.confirm('Are you sure you want to permanently delete this counselor?')) {
             try {
                 
-                // await api.delete(`/api/admin/counselors/${id}`);
-                // fetchMainData();
-                setCounselors(counselors.filter(c => c._id !== id));
-            } catch { 
-                alert('Error deleting counselor'); 
+                await api.delete(`/api/admin/counselors/${id}`);
+                await fetchMainData();
+            } catch (error) { 
+                alert(error.response?.data?.message || 'Error deleting counselor'); 
             }
         }
     };
@@ -147,13 +145,12 @@ const AdminCounselors = () => {
         e.preventDefault();
         try {
             
-            // await api.put(`/api/admin/counselors/${selectedCounselor._id}`, updateData);
-            setCounselors(counselors.map(c => c._id === selectedCounselor._id ? { ...c, specialty: updateData.specialty, userId: { ...c.userId, name: updateData.name } } : c));
+            await api.put(`/api/admin/counselors/${selectedCounselor._id}`, updateData);
             setViewMode(null);
             setSelectedCounselor(null);
-            // fetchMainData();
-        } catch { 
-            alert('Error updating counselor'); 
+            await fetchMainData();
+        } catch (error) { 
+            alert(error.response?.data?.message || 'Error updating counselor'); 
         }
     };
 
@@ -162,7 +159,8 @@ const AdminCounselors = () => {
         navigate('/login');
     };
 
-    // Derived statistics logic based on the image's layout mockup requirements
+
+
     const activeCount = counselors.filter(c => c.userId?.isActive).length;
     const totalCount = counselors.length;
 
@@ -410,19 +408,47 @@ const AdminCounselors = () => {
                                             </td>
                                             <td style={{...s.td, textAlign: 'right'}}>
                                                 <div style={s.actionBtns}>
-                                                    <button style={s.iconActionBtnDestructive} title="Delete">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                    <button style={s.iconActionBtn} title={c.userId?.isActive ? "Deactivate" : "Activate"}>
-                                                        <Power size={16} color={c.userId?.isActive ? "#8b6464ff" : "#10b981"} />
-                                                    </button>
-                                                    <button style={s.iconActionBtn} title="Update">
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button style={s.iconActionBtn} title="View Details">
-                                                        <Eye size={16} />
-                                                    </button>
-                                                </div>
+    
+                                            {/* DELETE */}
+                                            <button 
+                                                style={s.iconActionBtnDestructive} 
+                                                title="Delete"
+                                                onClick={() => handleDelete(c._id)}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+
+                                            {/* ACTIVATE / DEACTIVATE */}
+                                            <button 
+                                                style={s.iconActionBtn} 
+                                                title={c.userId?.isActive ? "Deactivate" : "Activate"}
+                                                onClick={() => toggleStatus(c.userId?._id, c.userId?.isActive)}
+                                            >
+                                                <Power size={16} color={c.userId?.isActive ? "#8b6464ff" : "#10b981"} />
+                                            </button>
+
+                                            {/* UPDATE */}
+                                            <button 
+                                                style={s.iconActionBtn} 
+                                                title="Update"
+                                                onClick={() => openUpdateModal(c)}
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+
+                                            {/* VIEW */}
+                                            <button 
+                                                style={s.iconActionBtn} 
+                                                title="View Details"
+                                                onClick={() => {
+                                                    setSelectedCounselor(c);
+                                                    setViewMode('view');
+                                                }}
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+
+                                        </div>
                                             </td>
                                         </tr>
                                     );
@@ -467,7 +493,7 @@ const AdminCounselors = () => {
                                 </div>
                                 <div style={s.detailSection}>
                                     <div style={s.detailRow}><strong>Specialty:</strong> {selectedCounselor.specialty || 'General'}</div>
-                                    <div style={s.detailRow}><strong>Status:</strong> {selectedCounselor.userId?.isActive ? 'Active' : 'Missing/Inactive'}</div>
+                                    <div style={s.detailRow}><strong>Status:</strong> {selectedCounselor.userId?.isActive ? 'Active' : 'Inactive'}</div>
                                 </div>
                             </div>
                         ) : (
