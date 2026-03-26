@@ -114,6 +114,7 @@ const AdminDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -296,6 +297,66 @@ const AdminDashboard = () => {
           <div style={s.searchContainer}>
             <Search size={18} color="#94a3b8" />
             <input type="text" placeholder="Search..." style={s.searchInput} />
+          </div>
+          {/** Notification Center - Add Notification Center to the Admin Dashboard */}
+          <div style={s.topActions}>
+            <div style={{ position: 'relative' }}>
+              <button 
+                style={s.iconBtn} 
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <div style={s.notificationBadge}>3</div>
+                <Bell size={22} color="#64748b" />
+              </button>
+              
+              {showNotifications && (
+                <div style={s.notificationDropdown}>
+                  <div style={s.notificationHeader}>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#0f172a' }}>Notifications</h4>
+                    <span style={s.markReadText}>Mark all as read</span>
+                  </div>
+                  <div style={s.notificationList}>
+                    <div style={s.notificationItemUnread}>
+                      <div style={s.notifIconWrapBooking}>
+                        <CalendarCheck size={14} color="#0284c7" />
+                      </div>
+                      <div style={s.notifContent}>
+                        <p style={s.notifTitle}>New Booking Alert - Dummy Data 01</p>
+                        <p style={s.notifText}>Student John Doe booked a session with Dr. Smith for Tomorrow at 10:00 AM.</p>
+                        <p style={s.notifTime}>10 mins ago</p>
+                      </div>
+                    </div>
+                    <div style={s.notificationItemUnread}>
+                      <div style={s.notifIconWrapUrgent}>
+                        <Activity size={14} color="#e11d48" />
+                      </div>
+                      <div style={s.notifContent}>
+                        <p style={s.notifTitle}>Urgent Student Issue - - Dummy Data 02</p>
+                        <p style={s.notifText}>High priority message from student Sarah Connor regarding her recent session.</p>
+                        <p style={s.notifTime}>1 hour ago</p>
+                      </div>
+                    </div>
+                    <div style={s.notificationItem}>
+                      <div style={s.notifIconWrapCancel}>
+                        <X size={14} color="#ea580c" />
+                      </div>
+                      <div style={s.notifContent}>
+                        <p style={s.notifTitle}>Session Cancellation - Dummy Data 03</p>
+                        <p style={s.notifText}>Dr. Adams cancelled their 3:00 PM slot for today. 2 students affected.</p>
+                        <p style={s.notifTime}>3 hours ago</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={s.notificationFooter}>
+                    <Link to="#" style={{ textDecoration: 'none', color: '#3b82f6', fontSize: '0.85rem', fontWeight: 600 }}>View All Notifications</Link>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div style={s.avatarUser}>
+              A
+            </div>
           </div>
         </div>
 
@@ -777,6 +838,132 @@ const s = {
     cursor: "pointer",
     display: "flex",
     padding: 0,
+    position: "relative",
+  },
+  
+  notificationBadge: {
+    position: 'absolute',
+    top: '-4px',
+    right: '-4px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    fontSize: '0.65rem',
+    fontWeight: 'bold',
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid #f8fafc',
+  },
+  notificationDropdown: {
+    position: 'absolute',
+    top: '100%',
+    right: '0',
+    marginTop: '0.5rem',
+    width: '320px',
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+    border: '1px solid #e2e8f0',
+    zIndex: 50,
+    overflow: 'hidden',
+    textAlign: 'left',
+  },
+  notificationHeader: {
+    padding: '1rem',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  markReadText: {
+    fontSize: '0.75rem',
+    color: '#3b82f6',
+    cursor: 'pointer',
+    fontWeight: 600,
+  },
+  notificationList: {
+    maxHeight: '300px',
+    overflowY: 'auto',
+  },
+  notificationItem: {
+    padding: '1rem',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    gap: '1rem',
+    alignItems: 'flex-start',
+    backgroundColor: 'white',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  notificationItemUnread: {
+    padding: '1rem',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    gap: '1rem',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f9ff',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+  },
+  notifIconWrapBooking: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: '#e0f2fe',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  notifIconWrapUrgent: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: '#ffe4e6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  notifIconWrapCancel: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: '#ffedd5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  notifContent: {
+    flex: 1,
+  },
+  notifTitle: {
+    margin: '0 0 0.25rem 0',
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  notifText: {
+    margin: '0 0 0.4rem 0',
+    fontSize: '0.8rem',
+    color: '#475569',
+    lineHeight: 1.4,
+  },
+  notifTime: {
+    margin: 0,
+    fontSize: '0.7rem',
+    color: '#94a3b8',
+    fontWeight: 500,
+  },
+  notificationFooter: {
+    padding: '0.75rem',
+    textAlign: 'center',
+    backgroundColor: '#f8fafc',
+    borderTop: '1px solid #f1f5f9',
   },
   avatarUser: {
     width: 34,

@@ -30,6 +30,12 @@ const AdminAppointments = () => {
     const [dateFilter, setDateFilter] = useState('');
     const [selectedApt, setSelectedApt] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    // Approval specific modal state
+    const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+    const [appointmentToApprove, setAppointmentToApprove] = useState(null);
+    const [meetingType, setMeetingType] = useState('Google Meet');
+    const [meetingLink, setMeetingLink] = useState('');
 
     useEffect(() => {
         fetchAppointments();
@@ -57,6 +63,42 @@ const AdminAppointments = () => {
             }
         } catch (error) {
             alert('Failed to update status');
+        }
+    };
+
+
+
+    {/* Approval Modal */}
+    const openApprovalModal = (apt, e) => {
+        if (e) e.stopPropagation();
+        setAppointmentToApprove(apt);
+        setMeetingType('Google Meet');
+        setMeetingLink('');
+        setIsApprovalModalOpen(true);
+    };
+
+    const submitApproval = async () => {
+        try {
+            // await api.put(`/api/appointments/${appointmentToApprove._id}/status`, { 
+            //     status: 'approved',
+            //     meetingType,
+            //     meetingLink
+            // });
+            
+            // setAppointments(appointments.map(a => 
+            //     a._id === appointmentToApprove._id 
+            //     ? { ...a, status: 'approved', meetingType, meetingLink } 
+            //     : a
+            // ));
+            
+            if (selectedApt && selectedApt._id === appointmentToApprove._id) {
+                setSelectedApt({ ...selectedApt, status: 'approved', meetingType, meetingLink });
+            }
+            
+            setIsApprovalModalOpen(false);
+            setAppointmentToApprove(null);
+        } catch (error) {
+            alert('Failed to approve appointment');
         }
     };
 
@@ -206,13 +248,12 @@ const AdminAppointments = () => {
                                                     </div>
                                                     <div style={s.patientCol}>
                                                         <div style={s.patientName}>Patient: {patientName}</div>
-                                                        <div style={s.locationText}><Video size={14} /> Virtual Session</div>
                                                     </div>
                                                     <div style={s.statusCol}>
                                                         <span style={badgeStyle}>{badgeText}</span>
                                                         {isPending && (
                                                             <div style={s.quickActions}>
-                                                                <button style={s.btnApproveSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'approved'); }}>Approve</button>
+                                                                <button style={s.btnApproveSm} onClick={(e) => openApprovalModal(apt, e)}>Approve</button>
                                                                 <button style={s.btnRejectSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'rejected'); }}>Reject</button>
                                                             </div>
                                                         )}
@@ -265,6 +306,57 @@ const AdminAppointments = () => {
                 </div>
             </div>
 
+            {/* Approval Modal */}
+            {isApprovalModalOpen && appointmentToApprove && (
+                <div style={s.modalOverlay} onClick={() => setIsApprovalModalOpen(false)}>
+                    <div style={s.modalContent} onClick={e => e.stopPropagation()}>
+                        <div style={s.modalHeader}>
+                            <h3 style={s.modalTitle}>Approve Appointment</h3>
+                            <button style={s.modalClose} onClick={() => setIsApprovalModalOpen(false)}>✕</button>
+                        </div>
+                        <div style={s.modalBody}>
+                            <div style={{ marginBottom: '1rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
+                                    Select meeting type:
+                                </label>
+                                <select 
+                                    value={meetingType} 
+                                    required
+                                    onChange={e => setMeetingType(e.target.value)}
+                                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                                >
+                                    <option value="Google Meet">Google Meet</option>
+                                    <option value="Zoom">Zoom</option>
+                                    <option value="MS Teams">MS Teams</option>
+                                    <option value="Physical meeting">Physical meeting</option>
+                                </select>
+                            </div>
+                            
+                            {meetingType !== 'Physical meeting' && (
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
+                                            Meeting link (optional):
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={meetingLink} 
+                                        required
+                                        onChange={e => setMeetingLink(e.target.value)}
+                                        placeholder="https://..."
+                                        style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', boxSizing: 'border-box' }}
+                                    />
+                                </div>
+                            )}
+                            
+                            <div style={s.modalActions}>
+                                <button style={s.btnCancelModal} onClick={() => setIsApprovalModalOpen(false)}>Cancel</button>
+                                <button style={s.btnConfirmApprove} onClick={submitApproval}>Confirm Approval</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Appointment Detail Modal */}
             {isModalOpen && selectedApt && (
                 <div style={s.modalOverlay} onClick={() => setIsModalOpen(false)}>
@@ -292,13 +384,13 @@ const AdminAppointments = () => {
                             
                             <div style={s.modalActions}>
                                                 {(selectedApt.status === 'approved' || selectedApt.status === 'completed') && (
-                                                    <button style={s.btnJoin} onClick={() => window.open('https://meet.google.com/new', '_blank')}>
-                                                        <Video size={16} /> Join Session
+                                                    <button style={s.btnJoin} onClick={() => window.open(selectedApt.meetingLink || 'https://meet.google.com/new', '_blank')}>
+                                                        <Video size={16} /> {selectedApt.meetingType === 'Physical meeting' ? 'Physical Session' : 'Join Session'}
                                                     </button>
                                                 )}
                                                 {selectedApt.status === 'pending' && (
                                                     <>
-                                                        <button style={s.btnApprove} onClick={() => handleUpdateStatus(selectedApt._id, 'approved')}>Approve Session</button>
+                                                        <button style={s.btnApprove} onClick={() => openApprovalModal(selectedApt)}>Approve Session</button>
                                                         <button style={s.btnReject} onClick={() => handleUpdateStatus(selectedApt._id, 'rejected')}>Reject Session</button>
                                                     </>
                                                 )}
@@ -390,13 +482,80 @@ const s = {
     btnRejectSm: { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
     btnResolveSm: { backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
 
-    // Right Widgets
-    statsCard: { backgroundColor: '#c9c4f7ff', borderRadius: '10px', padding: '2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
-    statsLabel: { fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: '1rem' },
-    statsValue: { fontSize: '3rem', fontWeight: 800, color: '#0f172a', lineHeight: 1, marginBottom: '1rem' },
-    statsTrendGreen: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: '#059669' },
-    statsTrendNeutral: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: '#475569' },
-    whitePlaceholder: { backgroundColor: 'white', borderRadius: '16px', flex: 1, minHeight: '120px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
+   
+// 🌟 Attractive Gradient Stats Card
+  statsCard: { 
+    background: 'linear-gradient(135deg, #eceaff, #dcd7ff)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    boxShadow: 
+      '0 4px 12px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04)',
+    transition: 'all 0.25s ease',
+  },
+
+  // Hover effect for any container using this style
+  statsCardHover: {
+    transform: 'translateY(-4px)',
+    boxShadow:
+      '0 8px 18px rgba(0,0,0,0.06), 0 3px 6px rgba(0,0,0,0.05)',
+  },
+
+  // Label text (small, uppercase)
+  statsLabel: { 
+    fontSize: '0.75rem',
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    color: '#6b7280',
+    letterSpacing: '0.08em',
+    marginBottom: '0.5rem',
+  },
+
+  // Main numeric value
+  statsValue: { 
+    fontSize: '2.5rem',
+    fontWeight: 800,
+    color: '#111827',
+    marginBottom: '0.75rem',
+    lineHeight: 1.1,
+  },
+
+  // Trend (positive)
+  statsTrendGreen: { 
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    color: '#10b981',
+  },
+
+  // Trend (neutral)
+  statsTrendNeutral: { 
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    color: '#475569',
+  },
+
+  // Mini white placeholder widget
+  whitePlaceholder: { 
+    backgroundColor: '#ffffff',
+    borderRadius: '14px',
+    flex: 1,
+    padding: '1rem',
+    minHeight: '100px',
+    boxShadow: 
+      '0 3px 10px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.03)',
+    transition: 'all 0.2s ease',
+  },
+
+  whitePlaceholderHover: {
+    transform: 'translateY(-3px)',
+    boxShadow: 
+      '0 8px 14px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.05)',
+  },
 
     // Banner
     bannerContainer: { width: '100%', borderRadius: '16px', overflow: 'hidden', height: '280px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
@@ -415,6 +574,8 @@ const s = {
     btnApprove: { flex: 1, backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
     btnReject: { flex: 1, backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
     btnResolve: { flex: 1, backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
+    btnCancelModal: { flex: 1, backgroundColor: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
+    btnConfirmApprove: { flex: 1, backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '0.8rem 1rem', fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer' },
 };
 
 export default AdminAppointments;

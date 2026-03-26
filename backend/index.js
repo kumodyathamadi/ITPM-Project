@@ -10,7 +10,7 @@ import counselorRoutes from './routes/counselorRoutes.js';
 import appointmentRoutes from './routes/appointmentRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
 
-// Load env vars
+// Load env 
 dotenv.config();
 
 // Connect to database
