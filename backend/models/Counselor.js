@@ -11,6 +11,10 @@ const counselorSchema = mongoose.Schema(
             type: String,
             required: true,
         },
+        profileImage: {
+            type: String,
+            default: '',
+        },
         availableDays: [
             {
                 type: String,

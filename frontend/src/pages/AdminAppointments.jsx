@@ -28,9 +28,15 @@ const AdminAppointments = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [dateFilter, setDateFilter] = useState('');
+    // View Modal State
     const [selectedApt, setSelectedApt] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     
+    // New Features State
+    const [viewMode, setViewMode] = useState('list'); // 'list' | 'calendar'
+    const [selectedItems, setSelectedItems] = useState([]);
+    const [statusFilter, setStatusFilter] = useState('all');
+
     // Approval specific modal state
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [appointmentToApprove, setAppointmentToApprove] = useState(null);
@@ -54,8 +60,7 @@ const AdminAppointments = () => {
 
     const handleUpdateStatus = async (id, newStatus) => {
         try {
-
-            // await api.put(`/api/appointments/${id}/status`, { status: newStatus });
+            await api.put(`/api/appointments/${id}/status`, { status: newStatus });
             
             setAppointments(appointments.map(a => a._id === id ? { ...a, status: newStatus } : a));
             if (selectedApt && selectedApt._id === id) {
@@ -63,6 +68,37 @@ const AdminAppointments = () => {
             }
         } catch (error) {
             alert('Failed to update status');
+        }
+    };
+
+    const handleBulkAction = async (newStatus) => {
+        if (!selectedItems.length) return;
+        if (!window.confirm(`Are you sure you want to bulk ${newStatus} ${selectedItems.length} appointments?`)) return;
+        
+        try {
+            await Promise.all(selectedItems.map(id => api.put(`/api/appointments/${id}/status`, { 
+                status: newStatus,
+                meetingType: 'Google Meet',
+                meetingLink: ''
+            })));
+            
+            fetchAppointments();
+            setSelectedItems([]);
+        } catch (error) {
+            alert('Bulk update encountered errors or partial failures');
+            fetchAppointments();
+        }
+    };
+
+    const toggleSelection = (id) => {
+        setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    };
+
+    const toggleSelectAll = (filteredAppointments) => {
+        if (selectedItems.length === filteredAppointments.length && filteredAppointments.length > 0) {
+            setSelectedItems([]);
+        } else {
+            setSelectedItems(filteredAppointments.map(a => a._id));
         }
     };
 
@@ -79,17 +115,17 @@ const AdminAppointments = () => {
 
     const submitApproval = async () => {
         try {
-            // await api.put(`/api/appointments/${appointmentToApprove._id}/status`, { 
-            //     status: 'approved',
-            //     meetingType,
-            //     meetingLink
-            // });
+            await api.put(`/api/appointments/${appointmentToApprove._id}/status`, { 
+                status: 'approved',
+                meetingType,
+                meetingLink
+            });
             
-            // setAppointments(appointments.map(a => 
-            //     a._id === appointmentToApprove._id 
-            //     ? { ...a, status: 'approved', meetingType, meetingLink } 
-            //     : a
-            // ));
+            setAppointments(appointments.map(a => 
+                a._id === appointmentToApprove._id 
+                ? { ...a, status: 'approved', meetingType, meetingLink } 
+                : a
+            ));
             
             if (selectedApt && selectedApt._id === appointmentToApprove._id) {
                 setSelectedApt({ ...selectedApt, status: 'approved', meetingType, meetingLink });
@@ -105,7 +141,7 @@ const AdminAppointments = () => {
     const handleResolve = async (id) => {
         if (window.confirm('Resolve and safely close this cancelled appointment?')) {
             try {
-                // await api.delete(`/api/admin/appointments/${id}`);
+                 await api.delete(`/api/admin/appointments/${id}`);
                 
                 setAppointments(appointments.filter(a => a._id !== id));
                 if (selectedApt && selectedApt._id === id) {
@@ -169,21 +205,64 @@ const AdminAppointments = () => {
                             <h1 style={s.pageTitle}>Manage Appointments</h1>
                             <p style={s.pageSub}>Monitor upcoming and past sessions, handle bookings, and maintain an efficient counseling schedule.</p>
                         </div>
-                       
+                    </div>
+
+                    {/* Top Widgets Row */}
+                    <div style={s.widgetsRow}>
+                        {/* Widget 1 */}
+                        <div style={statusFilter === 'pending' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}>
+                            <div style={s.statsLabel}>PENDING REQUESTS</div>
+                            <div style={s.statsValue}>{pendingCount}</div>
+                            <div style={s.statsTrendNeutral}>
+                                <Clock size={16} /> Awaiting counselor action
+                            </div>
+                        </div>
+                        
+                        {/* Widget 2: Cancelled */}
+                        <div style={statusFilter === 'cancelled' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'cancelled' ? 'all' : 'cancelled')}>
+                            <div style={s.statsLabel}>CANCELLED REQUESTS</div>
+                            <div style={s.statsValue}>{cancelledCount}</div>
+                            <div style={{...s.statsTrendNeutral, color: '#dc2626'}}>
+                                <Clock size={16} /> Needs attention
+                            </div>
+                        </div>
+
+                        {/* Widget 3: Completed */}
+                        <div style={statusFilter === 'completed' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}>
+                            <div style={s.statsLabel}>COMPLETED SESSIONS</div>
+                            <div style={s.statsValue}>{completedCount}</div>
+                            <div style={s.statsTrendGreen}>
+                                <CheckCircle size={16} /> Successfully finished
+                            </div>
+                        </div>
                     </div>
 
                     {/* Main Layout Grid */}
                     <div style={s.gridContainer}>
-                        {/* Left Column: Live Timeline */}
+                        {/* Timeline */}
                         <div style={s.leftCol}>
                             <div style={s.timelineCard}>
                                 <div style={s.timelineHeader}>
                                     <h3 style={s.cardTitle}>
-                                        <Radio size={20} color="#0f172a" /> Appoinment Schedule
+                                        <Radio size={20} color="#0f172a" /> Appointment Schedule
                                     </h3>
-                                    <span style={s.liveBadge}>
-                                        <span style={s.liveDot}></span> LIVE NOW
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <div style={s.viewToggleGroup}>
+                                            <button 
+                                                onClick={() => setViewMode('list')} 
+                                                style={viewMode === 'list' ? s.viewBtnActive : s.viewBtn}
+                                            >
+                                                List View
+                                            </button>
+                                            <button 
+                                                onClick={() => setViewMode('calendar')} 
+                                                style={viewMode === 'calendar' ? s.viewBtnActive : s.viewBtn}
+                                            >
+                                                Calendar View
+                                            </button>
+                                        </div>
+                                        
+                                    </div>
                                 </div>
                                 
                                 <div style={s.timelineList}>
@@ -199,103 +278,154 @@ const AdminAppointments = () => {
                                                 matchesDate = isoDateStr === dateFilter;
                                             }
 
-                                            return matchesSearch && matchesDate;
-                                        });
+                                            let matchesStatus = true;
+                                            if (statusFilter === 'pending') matchesStatus = apt.status === 'pending';
+                                            if (statusFilter === 'cancelled') matchesStatus = apt.status === 'cancelled' || apt.status === 'rejected';
+                                            if (statusFilter === 'completed') matchesStatus = apt.status === 'completed';
+
+                                            return matchesSearch && matchesDate && matchesStatus;
+                                        }).sort((a,b) => new Date(a.date) - new Date(b.date)); // Sort by date default
 
                                         if (filteredAppointments.length === 0) {
                                             return <div style={{color: '#64748b', padding: '1rem 0'}}>No appointments found matching your criteria.</div>;
                                         }
 
-                                        return filteredAppointments.map((apt) => {
-                                            const patientName = apt.studentId?.name || 'Unknown';
-                                            const doctorName = apt.counselorId?.userId?.name || 'Unknown';
-                                            const doctorSpec = apt.counselorId?.specialty || 'General';
+                                        if (viewMode === 'calendar') {
+                                            const today = new Date();
+                                            const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
                                             
-                                            const aptDate = new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                            const timeLabel = aptDate === today ? 'TODAY' : aptDate;
-
-                                            const isPending = apt.status === 'pending';
-                                            const isApproved = apt.status === 'approved';
-                                            const isCancelled = apt.status === 'cancelled' || apt.status === 'rejected';
-                                            const isCompleted = apt.status === 'completed';
-
-                                            let badgeStyle = s.statusBadgeScheduled;
-                                            let badgeText = apt.status.charAt(0).toUpperCase() + apt.status.slice(1);
-                                            let sessionStyle = s.sessionItemScheduled;
-
-                                            if (isApproved) {
-                                                badgeStyle = s.statusBadgeInProgress;
-                                                sessionStyle = s.sessionItemActive;
-                                            } else if (isCancelled) {
-                                                badgeStyle = {...s.statusBadgeScheduled, backgroundColor: '#fef2f2', color: '#b91c1c'};
-                                            } else if (isCompleted) {
-                                                badgeStyle = {...s.statusBadgeScheduled, backgroundColor: '#f0fdf4', color: '#15803d'};
+                                            const weekDays = [];
+                                            for (let i = 0; i < 7; i++) {
+                                                const d = new Date(startOfWeek);
+                                                d.setDate(d.getDate() + i);
+                                                weekDays.push(d);
                                             }
-
+                                    
                                             return (
-                                                <div key={apt._id} style={{ ...sessionStyle, cursor: 'pointer', transition: 'transform 0.1s' }} onClick={() => { setSelectedApt(apt); setIsModalOpen(true); }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                                                    <div style={s.timeCol}>
-                                                        <span style={s.timeLabel}>{timeLabel}</span>
-                                                        <span style={s.timeValue}>{apt.time?.split('-')[0] || apt.time}</span>
-                                                    </div>
-                                                    <div style={s.doctorCol}>
-                                                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=random`} alt={doctorName} style={s.doctorImg} />
-                                                        <div>
-                                                            <div style={s.doctorName}>{doctorName}</div>
-                                                            <div style={s.doctorSpec}>{doctorSpec}</div>
-                                                        </div>
-                                                    </div>
-                                                    <div style={s.patientCol}>
-                                                        <div style={s.patientName}>Patient: {patientName}</div>
-                                                    </div>
-                                                    <div style={s.statusCol}>
-                                                        <span style={badgeStyle}>{badgeText}</span>
-                                                        {isPending && (
-                                                            <div style={s.quickActions}>
-                                                                <button style={s.btnApproveSm} onClick={(e) => openApprovalModal(apt, e)}>Approve</button>
-                                                                <button style={s.btnRejectSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'rejected'); }}>Reject</button>
+                                                <div style={s.calendarGrid}>
+                                                    {weekDays.map((date, idx) => {
+                                                        const dateStr = date.toISOString().split('T')[0];
+                                                        const dayAppts = filteredAppointments.filter(a => new Date(a.date).toISOString().split('T')[0] === dateStr);
+                                                        const isToday = new Date().toDateString() === date.toDateString();
+                                    
+                                                        return (
+                                                            <div key={idx} style={isToday ? s.calendarDayColToday : s.calendarDayCol}>
+                                                                <div style={s.calendarDayHeader}>
+                                                                    {date.toLocaleDateString('en-US', { weekday: 'short' })} <br/>
+                                                                    <span style={{fontSize:'1.2rem', fontWeight:800}}>{date.getDate()}</span>
+                                                                </div>
+                                                                <div style={s.calendarDayBody}>
+                                                                    {dayAppts.length === 0 ? <div style={{color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center', marginTop: '1rem'}}>No appts</div> : 
+                                                                        dayAppts.map(apt => (
+                                                                            <div key={apt._id} style={s.calendarAptCard} onClick={() => { setSelectedApt(apt); setIsModalOpen(true); }}>
+                                                                                <div style={{fontSize: '0.75rem', fontWeight: 700}}>{apt.time?.split('-')[0] || apt.time}</div>
+                                                                                <div style={{fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>{apt.studentId?.name?.split(' ')[0] || 'Unknown'}</div>
+                                                                                <div style={{width: 8, height: 8, borderRadius: '50%', backgroundColor: apt.status === 'approved' ? '#10b981' : apt.status === 'pending' ? '#f59e0b' : apt.status === 'completed' ? '#3b82f6' : '#ef4444', marginTop: 4}} />
+                                                                            </div>
+                                                                        ))
+                                                                    }
+                                                                </div>
                                                             </div>
-                                                        )}
-                                                    </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             );
-                                        });
+                                        }
+
+                                        return (
+                                            <>
+                                                {/* Bulk Actions Bar */}
+                                                <div style={s.bulkActionBar}>
+                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedItems.length === filteredAppointments.length && filteredAppointments.length > 0} 
+                                                            onChange={() => toggleSelectAll(filteredAppointments)}
+                                                        />
+                                                        Select All
+                                                    </label>
+                                                    {selectedItems.length > 0 && (
+                                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{selectedItems.length} selected</span>
+                                                            <button style={s.btnApproveSm} onClick={() => handleBulkAction('approved')}>Approve Selected</button>
+                                                            <button style={s.btnRejectSm} onClick={() => handleBulkAction('rejected')}>Reject Selected</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {filteredAppointments.map((apt) => {
+                                                    const patientName = apt.studentId?.name || 'Unknown';
+                                                    const doctorName = apt.counselorId?.userId?.name || 'Unknown';
+                                                    const doctorSpec = apt.counselorId?.specialty || 'General';
+                                                    
+                                                    const aptDate = new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                                    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                                    const timeLabel = aptDate === today ? 'TODAY' : aptDate;
+
+                                                    const isPending = apt.status === 'pending';
+                                                    const isApproved = apt.status === 'approved';
+                                                    const isCancelled = apt.status === 'cancelled' || apt.status === 'rejected';
+                                                    const isCompleted = apt.status === 'completed';
+
+                                                    // Amber/Yellow for pending
+                                                    let badgeStyle = { backgroundColor: '#fef3c7', color: '#d97706', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 };
+                                                    let badgeText = apt.status.charAt(0).toUpperCase() + apt.status.slice(1);
+                                                    let sessionStyle = s.sessionItemPending;
+
+                                                    if (isApproved) {
+                                                        // Green
+                                                        badgeStyle = { backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 };
+                                                        sessionStyle = s.sessionItemApproved;
+                                                    } else if (isCancelled) {
+                                                        // Red
+                                                        badgeStyle = { backgroundColor: '#fee2e2', color: '#dc2626', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 };
+                                                        sessionStyle = s.sessionItemCancelled;
+                                                    } else if (isCompleted) {
+                                                        // Blue/Gray
+                                                        badgeStyle = { backgroundColor: '#e0f2fe', color: '#0284c7', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 };
+                                                        sessionStyle = s.sessionItemCompleted;
+                                                    }
+
+                                                    return (
+                                                        <div key={apt._id} style={{ ...sessionStyle, cursor: 'pointer', transition: 'transform 0.1s' }} onClick={() => { setSelectedApt(apt); setIsModalOpen(true); }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                                                            <div style={{ paddingRight: '1rem' }} onClick={(e) => e.stopPropagation()}>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    checked={selectedItems.includes(apt._id)}
+                                                                    onChange={() => toggleSelection(apt._id)}
+                                                                />
+                                                            </div>
+                                                            <div style={s.timeCol}>
+                                                                <span style={s.timeLabel}>{timeLabel}</span>
+                                                                <span style={s.timeValue}>{apt.time?.split('-')[0] || apt.time}</span>
+                                                            </div>
+                                                            <div style={s.doctorCol}>
+                                                                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctorName)}&background=random`} alt={doctorName} style={s.doctorImg} />
+                                                                <div>
+                                                                    <div style={s.doctorName}>{doctorName}</div>
+                                                                    <div style={s.doctorSpec}>{doctorSpec}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div style={s.patientCol}>
+                                                                <div style={s.patientName}>Patient: {patientName}</div>
+                                                            </div>
+                                                            <div style={s.statusCol}>
+                                                                <span style={badgeStyle}>{badgeText}</span>
+                                                                {isPending && (
+                                                                    <div style={s.quickActions}>
+                                                                        <button style={s.btnApproveSm} onClick={(e) => openApprovalModal(apt, e)}>Approve</button>
+                                                                        <button style={s.btnRejectSm} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(apt._id, 'rejected'); }}>Reject</button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </>
+                                        );
                                     })()}
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Right Column: Widgets */}
-                        <div style={s.rightCol}>
-                            {/* Widget 1 */}
-                            <div style={s.statsCard}>
-                                <div style={s.statsLabel}>PENDING REQUESTS</div>
-                                <div style={s.statsValue}>{pendingCount}</div>
-                                <div style={s.statsTrendNeutral}>
-                                    <Clock size={16} /> Awaiting counselor action
-                                </div>
-                            </div>
-                            
-                            {/* Widget 2: Cancelled */}
-                            <div style={s.statsCard}>
-                                <div style={s.statsLabel}>CANCELLED REQUESTS</div>
-                                <div style={s.statsValue}>{cancelledCount}</div>
-                                <div style={{...s.statsTrendNeutral, color: '#dc2626'}}>
-                                    <Clock size={16} /> Needs attention
-                                </div>
-                            </div>
-
-                            {/* Widget 3: Completed */}
-                            <div style={s.statsCard}>
-                                <div style={s.statsLabel}>COMPLETED SESSIONS</div>
-                                <div style={s.statsValue}>{completedCount}</div>
-                                <div style={s.statsTrendGreen}>
-                                    <CheckCircle size={16} /> Successfully finished
-                                </div>
-                            </div>
-                            
-                           
                         </div>
                     </div>
 
@@ -435,19 +565,22 @@ const s = {
     profileAvatar: { width: 32, height: 32, borderRadius: '50%', backgroundColor: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
     // Header
-    pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' },
+    pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
     pageTitle: { fontSize: '2rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.03em', marginBottom: '0.4rem' },
     pageSub: { color: '#475569', fontSize: '0.95rem' },
     headerActions: { display: 'flex', gap: '1rem' },
     btnSecondary: { display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1.2rem', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer' },
 
+    // Widgets Row
+    widgetsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' },
+
     // Layout Grid
-    gridContainer: { display: 'grid', gridTemplateColumns: 'minmax(600px, 1.8fr) 1fr', gap: '2rem', marginBottom: '2.5rem' },
-    leftCol: { display: 'flex', flexDirection: 'column' },
-    rightCol: { display: 'flex', flexDirection: 'column', gap: '1.0rem' },
+    gridContainer: { display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' },
+    leftCol: { display: 'flex', flexDirection: 'column', width: '100%' },
+    rightCol: { display: 'none' },
 
     // Cards
-    timelineCard: { backgroundColor: 'white', borderRadius: '1p0x', padding: '0.2rem', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' },
+    timelineCard: { backgroundColor: 'white', borderRadius: '14px', padding: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' },
     timelineHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
     cardTitle: { display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' },
     liveBadge: { backgroundColor: '#ccfbf1', color: '#0d9488', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.05em' },
@@ -456,9 +589,26 @@ const s = {
     // Timeline List
     timelineList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
     
-    // Session Items
-    sessionItemActive: { display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', padding: '1.25rem 1.5rem', borderLeft: '4px solid #0ea5e9', position: 'relative' },
-    sessionItemScheduled: { display: 'flex', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: '12px', padding: '1.25rem 1.5rem', border: '1px solid #f1f5f9', borderLeft: '4px solid #e2e8f0' },
+    // Toggle Group
+    viewToggleGroup: { display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '0.2rem' },
+    viewBtn: { background: 'transparent', border: 'none', padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b', cursor: 'pointer', borderRadius: '6px' },
+    viewBtnActive: { background: 'white', border: 'none', padding: '0.4rem 0.8rem', fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', cursor: 'default', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+
+    // Calendar Specifics
+    calendarGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', minHeight: '400px' },
+    calendarDayCol: { border: '1px solid #f1f5f9', borderRadius: '8px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    calendarDayColToday: { border: '1px solid #93c5fd', borderRadius: '8px', backgroundColor: '#eff6ff', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    calendarDayHeader: { padding: '0.75rem', textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(0,0,0,0.05)', fontSize: '0.8rem', fontWeight: 600, color: '#475569' },
+    calendarDayBody: { padding: '0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' },
+    calendarAptCard: { backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.5rem', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', borderLeft: '3px solid #cbd5e1' },
+
+    bulkActionBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem' },
+
+    // Session Items Standardized
+    sessionItemApproved: { display: 'flex', alignItems: 'center', backgroundColor: '#f0fdf4', borderRadius: '12px', padding: '1.25rem 1.5rem', border: '1px solid #dcfce7', borderLeft: '4px solid #10b981' },
+    sessionItemPending: { display: 'flex', alignItems: 'center', backgroundColor: '#fffbeb', borderRadius: '12px', padding: '1.25rem 1.5rem', border: '1px solid #fef3c7', borderLeft: '4px solid #f59e0b' },
+    sessionItemCancelled: { display: 'flex', alignItems: 'center', backgroundColor: '#fef2f2', borderRadius: '12px', padding: '1.25rem 1.5rem', border: '1px solid #fee2e2', borderLeft: '4px solid #ef4444' },
+    sessionItemCompleted: { display: 'flex', alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: '12px', padding: '1.25rem 1.5rem', border: '1px solid #dbeafe', borderLeft: '4px solid #3b82f6' },
     
     timeCol: { width: '80px', flexShrink: 0 },
     timeLabel: { display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', marginBottom: '0.25rem' },
@@ -474,8 +624,6 @@ const s = {
     locationText: { display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem' },
 
     statusCol: { width: '130px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: '0.5rem', flexShrink: 0 },
-    statusBadgeInProgress: { backgroundColor: '#a5f3fc', color: '#0891b2', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 },
-    statusBadgeScheduled: { backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.4rem 1rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 700 },
 
     quickActions: { display: 'flex', gap: '0.4rem' },
     btnApproveSm: { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
@@ -485,11 +633,21 @@ const s = {
    
 // 🌟 Attractive Gradient Stats Card
   statsCard: { 
+    background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    border: '2px solid transparent',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04)',
+    transition: 'all 0.25s ease',
+  },
+  statsCardActive: { 
     background: 'linear-gradient(135deg, #eceaff, #dcd7ff)',
     borderRadius: '14px',
     padding: '1.5rem',
-    boxShadow: 
-      '0 4px 12px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04)',
+    border: '2px solid #818cf8',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.08)',
     transition: 'all 0.25s ease',
   },
 

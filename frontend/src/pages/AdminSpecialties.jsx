@@ -23,17 +23,25 @@ const NavItem = ({ icon, label, to, active, onClick }) => {
 
 const AdminSpecialties = () => {
     const [specialties, setSpecialties] = useState([]);
+    const [counselors, setCounselors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingSpecialty, setEditingSpecialty] = useState(null);
     const [formData, setFormData] = useState({ name: '', sub: '', desc: '' });
     const [errors, setErrors] = useState({});
 
     const location = useLocation();
     const navigate = useNavigate();
 
-    const openModal = () => {
-        setFormData({ name: '', sub: '', desc: '' });
+    const openModal = (spec = null) => {
+        if (spec) {
+            setFormData({ name: spec.name, sub: spec.sub, desc: spec.desc });
+            setEditingSpecialty(spec);
+        } else {
+            setFormData({ name: '', sub: '', desc: '' });
+            setEditingSpecialty(null);
+        }
         setErrors({});
         setIsModalOpen(true);
     };
@@ -41,6 +49,7 @@ const AdminSpecialties = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setFormData({ name: '', sub: '', desc: '' });
+        setEditingSpecialty(null);
         setErrors({});
     };
 
@@ -50,10 +59,14 @@ const AdminSpecialties = () => {
 
     const fetchSpecialties = async () => {
         try {
-            const res = await api.get('/api/admin/specialties');
-            setSpecialties(res.data);
+            const [specsRes, counsRes] = await Promise.all([
+                api.get('/api/admin/specialties'),
+                api.get('/api/admin/counselors')
+            ]);
+            setSpecialties(specsRes.data);
+            setCounselors(counsRes.data);
         } catch (e) {
-            console.error('Failed to fetch specialties', e);
+            console.error('Failed to fetch data', e);
         } finally {
             setLoading(false);
         }
@@ -86,7 +99,7 @@ const AdminSpecialties = () => {
             newErrors.name = 'Name must be between 3 and 80 characters';
         } else if (!/^[A-Za-z\s]+$/.test(name)) {
             newErrors.name = 'Name can only contain letters and spaces';
-        } else if (specialties.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+        } else if (specialties.some(s => s.name.toLowerCase() === name.toLowerCase() && (!editingSpecialty || s._id !== editingSpecialty._id))) {
             newErrors.name = 'This specialty name already exists';
         }
 
@@ -120,27 +133,33 @@ const AdminSpecialties = () => {
         if (!validateForm()) return;
 
         try {
-            // Assign a random color aesthetic to match the design style
-            const themes = [
-                { color: '#5eceea', iconColor: '#14b8a6', icon: 'mind' },
-                { color: '#bfdbfe', iconColor: '#3b57f6', icon: 'heart' },
-                { color: '#f0f0e2', iconColor: '#624769', icon: 'book' },
-                { color: '#fef3c7', iconColor: '#d91406', icon: 'child' }
-            ];
-            const randTheme = themes[Math.floor(Math.random() * themes.length)];
+            if (editingSpecialty) {
+                const payload = { name: formData.name, sub: formData.sub, desc: formData.desc };
+                const res = await api.put(`/api/admin/specialties/${editingSpecialty._id}`, payload);
+                setSpecialties(specialties.map(s => s._id === editingSpecialty._id ? res.data : s));
+            } else {
+                // Assign a random color aesthetic to match the design style
+                const themes = [
+                    { color: '#5eceea', iconColor: '#14b8a6', icon: 'mind' },
+                    { color: '#bfdbfe', iconColor: '#3b57f6', icon: 'heart' },
+                    { color: '#f0f0e2', iconColor: '#624769', icon: 'book' },
+                    { color: '#fef3c7', iconColor: '#d91406', icon: 'child' }
+                ];
+                const randTheme = themes[Math.floor(Math.random() * themes.length)];
 
-            const payload = {
-                name: formData.name,
-                sub: formData.sub,
-                desc: formData.desc,
-                ...randTheme
-            };
+                const payload = {
+                    name: formData.name,
+                    sub: formData.sub,
+                    desc: formData.desc,
+                    ...randTheme
+                };
 
-            const res = await api.post('/api/admin/specialties', payload);
-            setSpecialties([...specialties, res.data]);
+                const res = await api.post('/api/admin/specialties', payload);
+                setSpecialties([...specialties, res.data]);
+            }
             closeModal();
         } catch (e) {
-            console.error('Failed to create specialty', e);
+            console.error('Failed to save specialty', e);
             alert('Failed to save specialty');
         }
     };
@@ -208,7 +227,7 @@ const AdminSpecialties = () => {
                             <h1 style={s.pageTitle}>Specialty Management</h1>
                             <p style={s.pageSub}>Organize clinical focus areas and counselor distribution.</p>
                         </div>
-                        <button style={s.primaryBtnDark} onClick={openModal}>
+                        <button style={s.primaryBtnDark} onClick={() => openModal()}>
                             <Plus size={16} /> Define Specialty
                         </button>
                     </div>
@@ -258,13 +277,19 @@ const AdminSpecialties = () => {
                                 </div>
 
                                 {/* Description */}
-                                <div style={{ flex: 2, paddingRight: '2rem' }}>
+                                <div style={{ flex: 2, paddingRight: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <p style={s.specDesc}>{spec.desc}</p>
+                                    <div style={{...s.countBadge, backgroundColor: spec.color || '#e2e8f0'}}>
+                                        <Users size={14} color={spec.iconColor || '#475569'} style={{ marginRight: '0.25rem' }} />
+                                        <span style={{ color: spec.iconColor || '#475569', fontWeight: 800, fontSize: '0.8rem' }}>
+                                            {counselors.filter(c => c.specialty === spec.name).length} 
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Actions */}
                                 <div style={{ width: '100px', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                                    <button style={s.actionBtnHover} title="Update">
+                                    <button style={s.actionBtnHover} onClick={() => openModal(spec)} title="Update">
                                         <Edit2 size={18} />
                                     </button>
                                     <button style={s.actionBtnHoverDestructive} onClick={() => handleDelete(spec._id)} title="Delete">
@@ -285,7 +310,7 @@ const AdminSpecialties = () => {
                 <div style={s.modalOverlay}>
                     <div style={s.modalContent}>
                         <div style={s.modalHeader}>
-                            <h3 style={s.modalTitle}>Define New Specialty</h3>
+                            <h3 style={s.modalTitle}>{editingSpecialty ? 'Update Specialty' : 'Define New Specialty'}</h3>
                             <button style={s.modalClose} onClick={closeModal}>
                                 <X size={20} />
                             </button>
@@ -329,7 +354,7 @@ const AdminSpecialties = () => {
                             </div>
                             <div style={s.modalFooter}>
                                 <button type="button" style={s.btnCancel} onClick={closeModal}>Cancel</button>
-                                <button type="submit" style={s.btnSave}>Save Specialty</button>
+                                <button type="submit" style={s.btnSave}>{editingSpecialty ? 'Update Specialty' : 'Save Specialty'}</button>
                             </div>
                         </form>
                     </div>
@@ -393,6 +418,7 @@ const s = {
     specName: { fontWeight: 800, color: '#0f172a', fontSize: '1rem', letterSpacing: '-0.01em' },
     specSub: { color: '#64748b', fontSize: '0.8rem', marginTop: '0.15rem' },
     specDesc: { color: '#475569', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 },
+    countBadge: { display: 'flex', alignItems: 'center', padding: '0.35rem 0.6rem', borderRadius: '999px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.04)' },
     
     actionBtnHover: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', transition: 'all 0.2s' },
     actionBtnHoverDestructive: { background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', transition: 'all 0.2s' },

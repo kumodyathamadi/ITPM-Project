@@ -25,6 +25,8 @@ const AdminCounselors = () => {
     const [counselors, setCounselors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterSpecialty, setFilterSpecialty] = useState('');
+    const [sortBy, setSortBy] = useState('nameAsc');
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -99,7 +101,11 @@ const AdminCounselors = () => {
         e.preventDefault();
         if (!validateForm()) return;
         try {
-            await api.post('/api/admin/counselors', formData);
+            const payload = {
+                ...formData,
+                profileImage: formData.photoPreview
+            };
+            await api.post('/api/admin/counselors', payload);
             setShowForm(false);
             setFormData({ name: '', email: '', password: '', phone: '', specialty: '', photo: null, photoPreview: null, availableDays: ['Monday'], availableTimeSlots: ['09:00-10:00'] });
             setFormErrors({});
@@ -164,10 +170,17 @@ const AdminCounselors = () => {
     const activeCount = counselors.filter(c => c.userId?.isActive).length;
     const totalCount = counselors.length;
 
-    const filteredCounselors = counselors.filter(c => 
-        c.userId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.specialty?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredCounselors = counselors.filter(c => {
+        const matchesSearch = c.userId?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || c.specialty?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSpecialty = filterSpecialty ? c.specialty === filterSpecialty : true;
+        return matchesSearch && matchesSpecialty;
+    }).sort((a, b) => {
+        if (sortBy === 'nameAsc') return (a.userId?.name || '').localeCompare(b.userId?.name || '');
+        if (sortBy === 'nameDesc') return (b.userId?.name || '').localeCompare(a.userId?.name || '');
+        if (sortBy === 'statusActive') return (b.userId?.isActive ? 1 : 0) - (a.userId?.isActive ? 1 : 0);
+        if (sortBy === 'statusInactive') return (a.userId?.isActive ? 1 : 0) - (b.userId?.isActive ? 1 : 0);
+        return 0;
+    });
 
     const displayCounselors = filteredCounselors;
 
@@ -199,15 +212,27 @@ const AdminCounselors = () => {
             <div style={s.mainWrapper}>
                 {/* Topbar */}
                 <div style={s.topBar}>
-                    <div style={s.searchContainer}>
-                        <Search size={18} color="#94a3b8" />
-                        <input 
-                            type="text" 
-                            placeholder="Search counselors..." 
-                            style={s.searchInput} 
-                            value={searchQuery}
-                            onChange={e => setSearchQuery(e.target.value)}
-                        />
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <div style={s.searchContainer}>
+                            <Search size={18} color="#94a3b8" />
+                            <input 
+                                type="text" 
+                                placeholder="Search counselors..." 
+                                style={s.searchInput} 
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <select style={s.selectFilter} value={filterSpecialty} onChange={e => setFilterSpecialty(e.target.value)}>
+                            <option value="">All Specialties</option>
+                            {specialties.map(spec => <option key={spec._id} value={spec.name}>{spec.name}</option>)}
+                        </select>
+                        <select style={s.selectFilter} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                            <option value="nameAsc">Sort: Name (A-Z)</option>
+                            <option value="nameDesc">Sort: Name (Z-A)</option>
+                            <option value="statusActive">Sort: Status (Active First)</option>
+                            <option value="statusInactive">Sort: Status (Inactive First)</option>
+                        </select>
                     </div>
                 </div>
 
@@ -357,6 +382,7 @@ const AdminCounselors = () => {
                             <thead>
                                 <tr style={s.theadTr}>
                                     <th style={s.th}>NAME & PROFILE</th>
+                                    <th style={s.th}>EMAIL</th>
                                     <th style={s.th}>SPECIALTIES</th>
                                     <th style={s.th}>AVAILABILITY</th>
                                     <th style={{...s.th, textAlign: 'right'}}>ACTIONS</th>
@@ -382,11 +408,16 @@ const AdminCounselors = () => {
                                         <tr key={c._id || i} style={s.tr}>
                                             <td style={s.td}>
                                                 <div style={s.nameCell}>
-                                                    <div style={s.avatarProfile}>{initial}</div>
+                                                    <div style={s.avatarProfile}>
+                                                        {c.profileImage ? <img src={c.profileImage} alt="" style={{width: '100%', height: '100%', borderRadius: '8px', objectFit: 'cover'}} /> : initial}
+                                                    </div>
                                                     <div>
                                                         <div style={s.profileName}>{name}</div>
                                                     </div>
                                                 </div>
+                                            </td>
+                                            <td style={{...s.td, color: '#64748b'}}>
+                                                {c.userId?.email || 'N/A'}
                                             </td>
                                             <td style={s.td}>
                                                 <div style={s.pillGroup}>
@@ -552,6 +583,7 @@ const s = {
     topBar: { height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2.5rem', flexShrink: 0, borderBottom: '1px solid transparent' },
     searchContainer: { display: 'flex', alignItems: 'center', backgroundColor: '#e2e8f0', padding: '0.6rem 1.25rem', borderRadius: '0.5rem', width: '380px', gap: '0.6rem' },
     searchInput: { border: 'none', backgroundColor: 'transparent', outline: 'none', fontSize: '0.85rem', width: '100%', color: '#0f172a', fontWeight: 500 },
+    selectFilter: { padding: '0.6rem 1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', color: '#475569', fontSize: '0.85rem', outline: 'none', backgroundColor: 'white', fontWeight: 600, cursor: 'pointer' },
     topActions: { display: 'flex', alignItems: 'center', gap: '1.25rem' },
     iconBtn: { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', padding: 0 },
     avatarUser: { width: 34, height: 34, borderRadius: '50%', border: '2px solid white', backgroundColor: '#e2e8f0', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' },

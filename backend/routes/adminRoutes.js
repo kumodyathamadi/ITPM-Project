@@ -4,6 +4,7 @@ import Counselor from '../models/Counselor.js';
 import Appointment from '../models/Appointment.js';
 import Specialty from '../models/Specialty.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
+import sendWelcomeEmail from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -36,7 +37,7 @@ router.get('/counselors', protect, admin, async (req, res) => {
 // @access  Private/Admin
 router.post('/counselors', protect, admin, async (req, res) => {
     try {
-        const { name, email, password, specialty, availableDays, availableTimeSlots } = req.body;
+        const { name, email, password, specialty, profileImage, availableDays, availableTimeSlots } = req.body;
 
         const userExists = await User.findOne({ email });
 
@@ -54,9 +55,13 @@ router.post('/counselors', protect, admin, async (req, res) => {
         const counselor = await Counselor.create({
             userId: user._id,
             specialty,
+            profileImage,
             availableDays,
             availableTimeSlots,
         });
+
+        // Send the welcome email with login details
+        await sendWelcomeEmail(email, name, email, password);
 
         res.status(201).json({ user, counselor });
     } catch (error) {
@@ -240,6 +245,29 @@ router.post('/specialties', protect, admin, async (req, res) => {
         const { name, sub, desc, color, iconColor, icon } = req.body;
         const specialty = await Specialty.create({ name, sub, desc, color, iconColor, icon });
         res.status(201).json(specialty);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// @desc    Update a specialty
+// @route   PUT /api/admin/specialties/:id
+// @access  Private/Admin
+router.put('/specialties/:id', protect, admin, async (req, res) => {
+    try {
+        const { name, sub, desc } = req.body;
+        const specialty = await Specialty.findById(req.params.id);
+        
+        if (specialty) {
+            specialty.name = name || specialty.name;
+            specialty.sub = sub || specialty.sub;
+            specialty.desc = desc || specialty.desc;
+            
+            const updatedSpecialty = await specialty.save();
+            res.json(updatedSpecialty);
+        } else {
+            res.status(404).json({ message: 'Specialty not found' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

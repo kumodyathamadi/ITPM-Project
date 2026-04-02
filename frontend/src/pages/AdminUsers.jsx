@@ -5,6 +5,8 @@ import {
     Users, LayoutGrid, Award, CalendarCheck, User, Trash2, 
     Download, ChevronLeft, ChevronRight, Search, Eye, X, Activity, Clock
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const NavItem = ({ icon, label, to, active, onClick }) => {
     const Component = to ? Link : 'div';
@@ -29,6 +31,10 @@ const AdminUsers = () => {
     // View Modal State
     const [selectedUser, setSelectedUser] = useState(null);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const USERS_PER_PAGE = 10;
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -68,6 +74,9 @@ const AdminUsers = () => {
 
     const toggleStatus = async (userId, currentStatus) => {
         if (!userId) return;
+        if (currentStatus) {
+            if (!window.confirm('Are you sure you want to deactivate this student?')) return;
+        }
         try {
             await api.put(`/api/admin/users/${userId}/status`, { isActive: !currentStatus });
             fetchMainData();
@@ -89,7 +98,63 @@ const AdminUsers = () => {
         (u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const displayUsers = filteredUsers;
+    // Reset pagination when search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+    const displayUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+
+    const handleExportPDF = () => {
+        try {
+            const doc = new jsPDF();
+            
+            doc.setFontSize(20);
+            doc.setTextColor('#4F46E5');
+            doc.text('Students Directory Report', 14, 22);
+            
+            doc.setFontSize(11);
+            doc.setTextColor('#64748b');
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+            doc.text(`Total Students Included: ${filteredUsers.length}`, 14, 36);
+
+            const tableColumn = ["Name", "Email", "Joined Date", "Appointments", "Last Session", "Status"];
+            const tableRows = [];
+
+            filteredUsers.forEach(u => {
+                const userAppts = appointments.filter(a => a.studentId?._id === u._id);
+                const sortedAppts = [...userAppts].sort((a,b) => new Date(b.date) - new Date(a.date));
+                const lastSession = sortedAppts.length > 0 ? new Date(sortedAppts[0].date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'No sessions';
+                
+                tableRows.push([
+                    u.name || 'Unknown',
+                    u.email || 'N/A',
+                    new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    userAppts.length.toString(),
+                    lastSession,
+                    u.isActive ? 'Active' : 'Suspended'
+                ]);
+            });
+
+            autoTable(doc, {
+                head: [tableColumn],
+                body: tableRows,
+                startY: 45,
+                theme: 'grid',
+                headStyles: { fillColor: '#4F46E5', textColor: '#ffffff' },
+                alternateRowStyles: { fillColor: '#f8fafc' },
+                styles: { fontSize: 10, cellPadding: 4 }
+            });
+
+            doc.save(`Students_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        } catch (error) {
+            console.error("PDF Export Error: ", error);
+            alert("Failed to generate PDF report. Check console for details.");
+        }
+    };
 
     if (loading) return <div style={s.loading}><div style={s.spinner} />Loading users…</div>;
 
@@ -120,7 +185,7 @@ const AdminUsers = () => {
                     {/* Page header */}
                     <div style={s.pageHeader}>
                         <div>
-                            <h1 style={s.pageTitle}>User Management</h1>
+                            <h1 style={s.pageTitle}>Students Management</h1>
                             <p style={s.pageSub}>Central hub for governing practitioner and student access across the clinical ecosystem.</p>
                         </div>
                     </div>
@@ -129,7 +194,7 @@ const AdminUsers = () => {
                     <div style={s.widgetsRow}>
                         {/* Summary Widget */}
                         <div style={s.summaryWidget}>
-                            <div style={s.summaryLabel}>TOTAL ACTIVE USERS</div>
+                            <div style={s.summaryLabel}>TOTAL ACTIVE STUDENTS</div>
                             <div style={s.summaryValue}>{activeCount}</div>
                             <div style={s.summaryTrend}>
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '0.25rem'}}>
@@ -160,7 +225,7 @@ const AdminUsers = () => {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <button style={s.btnSecondary}><Download size={16} /> Export</button>
+                            <button style={s.btnSecondary} onClick={handleExportPDF}><Download size={16} /> Export</button>
                         </div>
                         {/* Adding search strictly as requested though not fully prominent in current UI image, it's good for UX */}
                         <div style={s.actionRight}>
@@ -173,8 +238,9 @@ const AdminUsers = () => {
                             <thead>
                                 <tr style={s.theadTr}>
                                     <th style={s.th}>NAME</th>
-                                    <th style={s.th}>ROLE</th>
                                     <th style={s.th}>JOINED DATE</th>
+                                    <th style={s.th}>APPOINTMENT COUNT</th>
+                                    <th style={s.th}>LAST SESSION</th>
                                     <th style={s.th}>STATUS</th>
                                     <th style={{...s.th, textAlign: 'right'}}>QUICK ACTIONS</th>
                                 </tr>
@@ -185,6 +251,10 @@ const AdminUsers = () => {
                                     const initials = name.split(' ').map(n=>n[0]).join('').substring(0, 2).toUpperCase() || 'U';
                                     const joinedDate = new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
                                     
+                                    const userAppts = appointments.filter(a => a.studentId?._id === u._id);
+                                    const sortedAppts = [...userAppts].sort((a,b) => new Date(b.date) - new Date(a.date));
+                                    const lastSession = sortedAppts.length > 0 ? new Date(sortedAppts[0].date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'No sessions';
+
                                     let statusType = u.isActive ? 'active' : 'inactive';
 
                                     return (
@@ -199,10 +269,13 @@ const AdminUsers = () => {
                                                 </div>
                                             </td>
                                             <td style={s.td}>
-                                                <div style={{fontWeight: 600, color: '#1f2937'}}>Student</div>
+                                                <div style={{color: '#4b5563', fontSize: '0.9rem'}}>{joinedDate}</div>
                                             </td>
                                             <td style={s.td}>
-                                                <div style={{color: '#4b5563', fontSize: '0.9rem'}}>{joinedDate}</div>
+                                                <div style={{fontWeight: 600, color: '#1f2937'}}>{userAppts.length}</div>
+                                            </td>
+                                            <td style={s.td}>
+                                                <div style={{color: '#4b5563', fontSize: '0.9rem'}}>{lastSession}</div>
                                             </td>
                                             <td style={s.td}>
                                                 {statusType === 'active' && (
@@ -232,16 +305,38 @@ const AdminUsers = () => {
                         </table>
                         
                         {/* Pagination footer */}
-                        <div style={s.paginationWrap}>
-                            <span style={s.pageText}>Showing {displayUsers.length} of {totalCount} users</span>
-                            <div style={s.pageControls}>
-                                <button style={s.pageArrow}><ChevronLeft size={16} /></button>
-                                <button style={s.pageNumberActive}>1</button>
-                                <button style={s.pageNumber}>2</button>
-                                <button style={s.pageNumber}>3</button>
-                                <button style={s.pageArrow}><ChevronRight size={16} /></button>
+                        {totalPages > 1 && (
+                            <div style={s.paginationWrap}>
+                                <span style={s.pageText}>Showing {startIndex + 1} to {Math.min(startIndex + USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users</span>
+                                <div style={s.pageControls}>
+                                    <button 
+                                        style={s.pageArrow} 
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    >
+                                        <ChevronLeft size={16} />
+                                    </button>
+                                    
+                                    {[...Array(totalPages)].map((_, idx) => (
+                                        <button 
+                                            key={idx} 
+                                            style={currentPage === idx + 1 ? s.pageNumberActive : s.pageNumber}
+                                            onClick={() => setCurrentPage(idx + 1)}
+                                        >
+                                            {idx + 1}
+                                        </button>
+                                    ))}
+                                    
+                                    <button 
+                                        style={s.pageArrow} 
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    >
+                                        <ChevronRight size={16} />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -346,7 +441,7 @@ const s = {
     searchInput: { border: 'none', outline: 'none', marginLeft: '0.5rem', fontSize: '0.9rem', color: '#0f172a', width: '100%', background: 'transparent' },
 
     // Main Table
-    tableContainer: { background: 'white', borderRadius: '12px', overflow: 'hidden', marginBottom: '2.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+    tableContainer: { background: 'white', borderRadius: '12px', overflowX: 'auto', marginBottom: '2.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
     table: { width: '100%', borderCollapse: 'collapse', minWidth: '800px' },
     theadTr: { borderBottom: '1px solid #f1f5f9' },
     th: { padding: '1.25rem 2rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' },
