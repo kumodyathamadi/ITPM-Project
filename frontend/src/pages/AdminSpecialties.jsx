@@ -232,6 +232,8 @@ const AdminSpecialties = () => {
                         </button>
                     </div>
 
+
+``
                     {/* Top Widgets Row */}
                     <div style={s.widgetsRow}>
                         <div style={s.statCard}>
@@ -248,8 +250,6 @@ const AdminSpecialties = () => {
                         <div style={s.bannerWidget}>
                             <div style={s.bannerOverlay}></div>
                         </div>
-
-                        <div style={s.emptyBlock} />
                     </div>
 
                      
@@ -265,6 +265,9 @@ const AdminSpecialties = () => {
                     <div style={s.cardsContainer}>
                         {filteredSpecs.map((spec) => (
                             <div key={spec._id} style={s.specialtyCard}>
+
+
+                                
                                 {/* Specialty Name & Icon */}
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                     <div style={{...s.iconCircle, backgroundColor: spec.color || '#e2e8f0'}}>

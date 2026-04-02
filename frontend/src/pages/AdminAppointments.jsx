@@ -209,28 +209,37 @@ const AdminAppointments = () => {
 
                     {/* Top Widgets Row */}
                     <div style={s.widgetsRow}>
-                        {/* Widget 1 */}
-                        <div style={statusFilter === 'pending' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}>
-                            <div style={s.statsLabel}>PENDING REQUESTS</div>
-                            <div style={s.statsValue}>{pendingCount}</div>
-                            <div style={s.statsTrendNeutral}>
+                        {/* Widget 1: Pending - Amber */}
+                        <div
+                            style={statusFilter === 'pending' ? s.statsCardPendingActive : s.statsCardPending}
+                            onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+                        >
+                            <div style={{ ...s.statsLabel, color: '#92400e' }}>PENDING REQUESTS</div>
+                            <div style={{ ...s.statsValue, color: '#78350f' }}>{pendingCount}</div>
+                            <div style={{ ...s.statsTrendNeutral, color: '#b45309' }}>
                                 <Clock size={16} /> Awaiting counselor action
                             </div>
                         </div>
-                        
-                        {/* Widget 2: Cancelled */}
-                        <div style={statusFilter === 'cancelled' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'cancelled' ? 'all' : 'cancelled')}>
-                            <div style={s.statsLabel}>CANCELLED REQUESTS</div>
-                            <div style={s.statsValue}>{cancelledCount}</div>
-                            <div style={{...s.statsTrendNeutral, color: '#dc2626'}}>
+
+                        {/* Widget 2: Cancelled - Red */}
+                        <div
+                            style={statusFilter === 'cancelled' ? s.statsCardCancelledActive : s.statsCardCancelled}
+                            onClick={() => setStatusFilter(statusFilter === 'cancelled' ? 'all' : 'cancelled')}
+                        >
+                            <div style={{ ...s.statsLabel, color: '#991b1b' }}>CANCELLED REQUESTS</div>
+                            <div style={{ ...s.statsValue, color: '#7f1d1d' }}>{cancelledCount}</div>
+                            <div style={{ ...s.statsTrendNeutral, color: '#dc2626' }}>
                                 <Clock size={16} /> Needs attention
                             </div>
                         </div>
 
-                        {/* Widget 3: Completed */}
-                        <div style={statusFilter === 'completed' ? s.statsCardActive : s.statsCard} onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}>
-                            <div style={s.statsLabel}>COMPLETED SESSIONS</div>
-                            <div style={s.statsValue}>{completedCount}</div>
+                        {/* Widget 3: Completed - Green */}
+                        <div
+                            style={statusFilter === 'completed' ? s.statsCardCompletedActive : s.statsCardCompleted}
+                            onClick={() => setStatusFilter(statusFilter === 'completed' ? 'all' : 'completed')}
+                        >
+                            <div style={{ ...s.statsLabel, color: '#14532d' }}>COMPLETED SESSIONS</div>
+                            <div style={{ ...s.statsValue, color: '#052e16' }}>{completedCount}</div>
                             <div style={s.statsTrendGreen}>
                                 <CheckCircle size={16} /> Successfully finished
                             </div>
@@ -631,31 +640,70 @@ const s = {
     btnResolveSm: { backgroundColor: '#64748b', color: 'white', border: 'none', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.1s' },
 
    
-// 🌟 Attractive Gradient Stats Card
-  statsCard: { 
-    background: 'linear-gradient(135deg, #ffffff, #f8fafc)',
+// Pending - Amber
+  statsCardPending: {
+    background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
     borderRadius: '14px',
     padding: '1.5rem',
-    border: '2px solid transparent',
+    border: '2px solid #fde68a',
+    borderLeft: '5px solid #f59e0b',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04)',
+    boxShadow: '0 4px 12px rgba(245,158,11,0.1)',
     transition: 'all 0.25s ease',
   },
-  statsCardActive: { 
-    background: 'linear-gradient(135deg, #eceaff, #dcd7ff)',
+  statsCardPendingActive: {
+    background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
     borderRadius: '14px',
     padding: '1.5rem',
-    border: '2px solid #818cf8',
+    border: '2px solid #f59e0b',
+    borderLeft: '5px solid #d97706',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.08)',
+    boxShadow: '0 6px 16px rgba(245,158,11,0.2)',
     transition: 'all 0.25s ease',
   },
 
-  // Hover effect for any container using this style
-  statsCardHover: {
-    transform: 'translateY(-4px)',
-    boxShadow:
-      '0 8px 18px rgba(0,0,0,0.06), 0 3px 6px rgba(0,0,0,0.05)',
+  // Cancelled - Red
+  statsCardCancelled: {
+    background: 'linear-gradient(135deg, #fff1f2, #fee2e2)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    border: '2px solid #fecaca',
+    borderLeft: '5px solid #ef4444',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(239,68,68,0.1)',
+    transition: 'all 0.25s ease',
+  },
+  statsCardCancelledActive: {
+    background: 'linear-gradient(135deg, #fee2e2, #fecaca)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    border: '2px solid #ef4444',
+    borderLeft: '5px solid #dc2626',
+    cursor: 'pointer',
+    boxShadow: '0 6px 16px rgba(239,68,68,0.2)',
+    transition: 'all 0.25s ease',
+  },
+
+  // Completed - Green
+  statsCardCompleted: {
+    background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    border: '2px solid #bbf7d0',
+    borderLeft: '5px solid #22c55e',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(34,197,94,0.1)',
+    transition: 'all 0.25s ease',
+  },
+  statsCardCompletedActive: {
+    background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+    borderRadius: '14px',
+    padding: '1.5rem',
+    border: '2px solid #22c55e',
+    borderLeft: '5px solid #16a34a',
+    cursor: 'pointer',
+    boxShadow: '0 6px 16px rgba(34,197,94,0.2)',
+    transition: 'all 0.25s ease',
   },
 
   // Label text (small, uppercase)

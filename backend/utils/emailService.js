@@ -17,12 +17,12 @@ const sendWelcomeEmail = async (counselorEmail, counselorName, username, passwor
             to: counselorEmail,
             subject: 'Welcome to MindBridge',
             html: `
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto;">
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0a0808; max-width: 600px; margin: auto;">
                     <h2>Welcome to MindBridge!</h2>
                     <p>Dear <strong>${counselorName}</strong>,</p>
                     <p>We are delighted to have you join our team. Your expertise and dedication will play a vital role in supporting individuals on their journey toward better mental well-being.</p>
                     <p>Your account has been successfully created. Please find your login details below:</p>
-                    <div style="background: #f4f4f4; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <div style="background: #c2c8dd; padding: 15px; border-radius: 5px; margin: 15px 0;">
                         <p style="margin: 0;"><strong>Username:</strong> ${username}</p>
                         <p style="margin: 0;"><strong>Password:</strong> ${password}</p>
                     </div>

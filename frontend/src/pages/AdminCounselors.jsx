@@ -35,7 +35,7 @@ const AdminCounselors = () => {
     const [formData, setFormData] = useState({
         name: '', email: '', password: '', phone: '', specialty: '', photo: null, photoPreview: null,
         availableDays: ['Monday', 'Wednesday', 'Friday'],
-        availableTimeSlots: ['09:00-10:00', '13:00-14:00'],
+        availableTimeSlots: ["09:30-11:00", "16:30-17:30"],
     });
     const [formErrors, setFormErrors] = useState({});
 
@@ -255,6 +255,8 @@ const AdminCounselors = () => {
                             {showForm ? <><X size={16} /> Cancel</> : <><Plus size={16} /> Add Counselor</>}
                         </button>
                     </div>
+
+
 
                     {/* Top Widgets Row */}
                    <div style={s.widgetsRow}>
@@ -487,17 +489,7 @@ const AdminCounselors = () => {
                             </tbody>
                         </table>
                         
-                        {/* Pagination footer */}
-                        <div style={s.paginationWrap}>
-                            <span style={s.pageText}>Showing {displayCounselors.length} of {totalCount} Counselors</span>
-                            <div style={s.pageControls}>
-                                <button style={s.pageArrow}><ChevronLeft size={16} /></button>
-                                <button style={s.pageNumberActive}>1</button>
-                                <button style={s.pageNumber}>2</button>
-                                <button style={s.pageNumber}>3</button>
-                                <button style={s.pageArrow}><ChevronRight size={16} /></button>
-                            </div>
-                        </div>
+                        
                     </div>
                     
                 </div>
